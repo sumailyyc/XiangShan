@@ -27,7 +27,8 @@ import freechips.rocketchip.diplomacy.{IdRange, LazyModule, LazyModuleImp, Trans
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util.{BundleFieldBase, UIntToOH1}
 import device.RAMHelper
-import coupledL2.{AliasField, AliasKey, DirtyField, PrefetchField}
+import coupledL2.{AliasField, VaddrField, PrefetchField}
+import utility.ReqSourceField
 import utility.FastArbiter
 import mem.{AddPipelineReg}
 import xiangshan.cache.dcache.ReplayCarry
@@ -660,14 +661,21 @@ class DCacheIO(implicit p: Parameters) extends DCacheBundle {
 class DCache()(implicit p: Parameters) extends LazyModule with HasDCacheParameters {
   override def shouldBeInlined: Boolean = false
 
+  val reqFields: Seq[BundleFieldBase] = Seq(
+    PrefetchField(),
+    ReqSourceField(),
+    VaddrField(VAddrBits - blockOffBits),
+  ) ++ cacheParams.aliasBitsOpt.map(AliasField)
+  val echoFields: Seq[BundleFieldBase] = Nil
+
   val clientParameters = TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "dcache",
       sourceId = IdRange(0, nEntries + 1),
       supportsProbe = TransferSizes(cfg.blockBytes)
     )),
-    requestFields = cacheParams.reqFields,
-    echoFields = cacheParams.echoFields
+    requestFields = reqFields,
+    echoFields = echoFields
   )
 
   val clientNode = TLClientNode(Seq(clientParameters))
