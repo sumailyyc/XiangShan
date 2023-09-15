@@ -7,8 +7,7 @@ import xiangshan.backend.regfile.IntPregParams
 import xiangshan.{XSCoreParameters, XSCoreParamsKey, XSTileKey}
 
 object BackendMain extends App {
-  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(
-    args :+ "--disable-always-basic-diff" :+ "--disable-all" :+ "--remove-assert" :+ "--fpga-platform")
+  val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
 
   val defaultConfig = config.alterPartial({
     // Get XSCoreParams and pass it to the "small module"
@@ -21,7 +20,6 @@ object BackendMain extends App {
   Generator.execute(
     firrtlOpts :+ "--full-stacktrace" :+ "--target-dir" :+ "backend",
     backend.module,
-    firrtlComplier,
     firtoolOpts
   )
   println("done")

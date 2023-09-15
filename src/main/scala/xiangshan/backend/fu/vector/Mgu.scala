@@ -179,14 +179,6 @@ class VecInfo(implicit p: Parameters) extends Bundle {
   val dstMask = Bool()
 }
 
-object VerilogMgu extends App {
-  println("Generating the Mgu hardware")
-  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
-  val p = config.alterPartial({case XSCoreParamsKey => config(XSTileKey).head})
-
-  emitVerilog(new Mgu(128)(p), Array("--target-dir", "build/vifu", "--full-stacktrace"))
-}
-
 class MguTest extends AnyFlatSpec with ChiselScalatestTester with Matchers {
 
   val defaultConfig = (new DefaultConfig).alterPartial({

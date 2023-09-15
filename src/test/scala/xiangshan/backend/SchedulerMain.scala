@@ -7,7 +7,7 @@ import xiangshan.backend.issue.Scheduler
 import xiangshan.{XSCoreParameters, XSCoreParamsKey}
 
 object SchedulerMain extends App {
-  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
+  val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
 
   val backendParams = config(XSCoreParamsKey).backendParams
 
@@ -17,7 +17,6 @@ object SchedulerMain extends App {
   Generator.execute(
     firrtlOpts,
     schd.module,
-    firrtlComplier,
     firtoolOpts
   )
 }

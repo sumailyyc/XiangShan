@@ -19,23 +19,11 @@ package top
 import chisel3.RawModule
 import chisel3.stage.ChiselGeneratorAnnotation
 
-abstract class FirrtlCompiler
-case object SFC extends FirrtlCompiler
-case object MFC extends FirrtlCompiler
-
 object Generator {
-
-  def execute(args: Array[String], mod: => RawModule, fc: FirrtlCompiler, firtoolOpts: Array[String]) = {
-    fc match {
-      case MFC =>
-        (new circt.stage.ChiselStage).execute(args, Seq(
-          ChiselGeneratorAnnotation(mod _),
-          circt.stage.CIRCTTargetAnnotation(circt.stage.CIRCTTarget.Verilog)
-        ) ++ firtoolOpts.map(opt => circt.stage.FirtoolOption(opt)))
-        
-      case _ =>
-        assert(false, s"Unknown firrtl compiler: ${fc.getClass.getName}!")
-    }
+  def execute(args: Array[String], mod: => RawModule, firtoolOpts: Array[String]) = {
+    (new circt.stage.ChiselStage).execute(args, Seq(
+      ChiselGeneratorAnnotation(mod _),
+      circt.stage.CIRCTTargetAnnotation(circt.stage.CIRCTTarget.Verilog)
+    ) ++ firtoolOpts.map(opt => circt.stage.FirtoolOption(opt)))
   }
-
 }
