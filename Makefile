@@ -14,42 +14,37 @@
 # See the Mulan PSL v2 for more details.
 #***************************************************************************************
 
-TOP = XSTop
-FPGATOP = top.TopMain
 BUILD_DIR = ./build
+
+TOP = XSTop
+SIM_TOP = SimTop
+
+FPGATOP = top.TopMain
+SIMTOP  = top.SimTop
+
 TOP_V = $(BUILD_DIR)/$(TOP).v
+SIM_TOP_V = $(BUILD_DIR)/$(SIM_TOP).v
+
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 TEST_FILE = $(shell find ./src/test/scala -name '*.scala')
+
 MEM_GEN = ./scripts/vlsi_mem_gen
 MEM_GEN_SEP = ./scripts/gen_sep_mem.sh
+SPLIT_VERILOG = ./scripts/split_verilog.sh
 
-SIMTOP  = top.SimTop
 IMAGE  ?= temp
 CONFIG ?= DefaultConfig
 NUM_CORES ?= 1
-MFC ?= 1
-
-FPGA_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(FPGATOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
-SIM_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(SIMTOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
 
 # select firrtl compiler
-ifeq ($(MFC),1)
-override FC_ARGS = --mfc
 override FPGA_MEM_ARGS = --dump-fir \
-                         --firtool-opt -split-verilog \
-                         --firtool-opt -o \
-                         --firtool-opt build \
                          --firtool-opt -repl-seq-mem \
-                         --firtool-opt -repl-seq-mem-file=XSTop.v.conf \
+                         --firtool-opt -repl-seq-mem-file=$(TOP).v.conf \
                          --firtool-opt --disable-annotation-unknown
 override SIM_MEM_ARGS = --dump-fir \
-                        --firtool-opt -split-verilog \
-                        --firtool-opt -o \
-                        --firtool-opt build \
                         --firtool-opt -repl-seq-mem \
-                        --firtool-opt -repl-seq-mem-file=SimTop.v.conf \
+                        --firtool-opt -repl-seq-mem-file=$(SIM_TOP).v.conf \
                         --firtool-opt --disable-annotation-unknown
-endif
 
 
 # co-simulation with DRAMsim3
@@ -102,12 +97,9 @@ $(TOP_V): $(SCALA_FILE)
 		--config $(CONFIG)                                        \
 		$(FPGA_MEM_ARGS)                                          \
 		--num-cores $(NUM_CORES)                                  \
-		$(RELEASE_ARGS) $(FC_ARGS)
-ifeq ($(MFC),1)
-	for file in $(BUILD_DIR)/*.sv; do $(SED_CMD) "$${file}"; mv "$${file}" "$${file%.sv}.v"; done
-	mv $(BUILD_DIR)/$(BUILD_DIR)/* $(BUILD_DIR)
+		$(RELEASE_ARGS)
+	$(SPLIT_VERILOG) $(BUILD_DIR) $(TOP).v
 	$(MEM_GEN_SEP) "$(MEM_GEN)" "$(TOP_V).conf" "$(BUILD_DIR)"
-endif
 	$(SED_CMD) $@
 	@git log -n 1 >> .__head__
 	@git diff >> .__diff__
@@ -119,8 +111,6 @@ endif
 
 verilog: $(TOP_V)
 
-SIM_TOP   = SimTop
-SIM_TOP_V = $(BUILD_DIR)/$(SIM_TOP).v
 $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	mkdir -p $(@D)
 	@echo "\n[mill] Generating Verilog files..." > $(TIMELOG)
@@ -129,12 +119,9 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 		--config $(CONFIG)                                            \
 		$(SIM_MEM_ARGS)                                               \
 		--num-cores $(NUM_CORES)                                      \
-		$(SIM_ARGS) $(FC_ARGS)
-ifeq ($(MFC),1)
-	for file in $(BUILD_DIR)/*.sv; do $(SED_CMD) "$${file}"; mv "$${file}" "$${file%.sv}.v"; done
-	mv $(BUILD_DIR)/$(BUILD_DIR)/* $(BUILD_DIR)
+		$(SIM_ARGS)
+	$(SPLIT_VERILOG) $(BUILD_DIR) $(SIM_TOP).v
 	$(MEM_GEN_SEP) "$(MEM_GEN)" "$(SIM_TOP_V).conf" "$(BUILD_DIR)"
-endif
 	$(SED_CMD) $@
 	@git log -n 1 >> .__head__
 	@git diff >> .__diff__
@@ -149,7 +136,7 @@ sim-verilog: $(SIM_TOP_V)
 
 clean:
 	$(MAKE) -C ./difftest clean
-	rm -rf ./build
+	rm -rf $(BUILD_DIR)
 
 init:
 	git submodule update --init

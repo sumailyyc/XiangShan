@@ -28,27 +28,6 @@ import xiangshan.mem.LqPtr
 import system.SoCParamsKey
 
 class SimTop(implicit p: Parameters) extends Module {
-  ExcitingUtils.register(
-    p(XSTileKey).map { coreParams =>
-      val newP = p.alterPartial({ case XSCoreParamsKey => coreParams })
-      Map(
-        s"L2MissMatch_${coreParams.HartId}" -> Bool(),
-        s"L3MissMatch_${coreParams.HartId}" -> Bool(),
-        s"miss_in_dtlb_${coreParams.HartId}" -> Bool(),
-        s"rob_head_vaddr_${coreParams.HartId}" -> Valid(UInt(coreParams.VAddrBits.W)),
-        s"rob_head_paddr_${coreParams.HartId}" -> Valid(UInt(p(SoCParamsKey).PAddrBits.W)),
-        s"rob_head_lqIdx_${coreParams.HartId}" -> Valid(new LqPtr()(newP)),
-        s"rob_head_ls_issue_${coreParams.HartId}" -> Bool(),
-        s"load_l1_miss_${coreParams.HartId}" -> Bool(),
-        s"load_tlb_replay_stall_${coreParams.HartId}" -> Bool(),
-        s"load_tlb_miss_stall_${coreParams.HartId}" -> Bool(),
-        s"load_vio_replay_stall_${coreParams.HartId}" -> Bool(),
-        s"load_mshr_replay_stall_${coreParams.HartId}" -> Bool(),
-        s"rob_head_other_replay_${coreParams.HartId}" -> Bool()
-      )
-    }.flatten.toMap
-  )
-
   val debugOpts = p(DebugOptionsKey)
 
   val l_soc = LazyModule(new XSTop())
@@ -125,7 +104,7 @@ class SimTop(implicit p: Parameters) extends Module {
 
 object SimTop extends App {
   // Keep this the same as TopMain except that SimTop is used here instead of XSTop
-  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
+  val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
 
   // tools: init to close dpi-c when in fpga
   val envInFPGA = config(DebugOptionsKey).FPGAPlatform
@@ -137,7 +116,6 @@ object SimTop extends App {
   Generator.execute(
     firrtlOpts,
     DisableMonitors(p => new SimTop()(p))(config),
-    firrtlComplier,
     firtoolOpts
   )
 
