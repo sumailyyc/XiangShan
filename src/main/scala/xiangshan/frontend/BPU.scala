@@ -16,9 +16,8 @@
 
 package xiangshan.frontend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
-import chisel3.experimental.chiselName
 import chisel3.util._
 import xiangshan._
 import utils._
@@ -238,7 +237,6 @@ class PredictorIO(implicit p: Parameters) extends XSBundle {
   val reset_vector = Input(UInt(PAddrBits.W))
 }
 
-@chiselName
 class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with HasPerfEvents with HasCircularQueuePtrHelper {
   val io = IO(new PredictorIO)
 
@@ -534,7 +532,7 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
   s1_pred_info.taken := resp.s1.taken
   s1_pred_info.cfiIndex := resp.s1.cfiIndex.bits
 
-  val previous_s1_pred_info = RegEnable(s1_pred_info, init=0.U.asTypeOf(s1_pred_info), s1_fire)
+  val previous_s1_pred_info = RegEnable(s1_pred_info, 0.U.asTypeOf(s1_pred_info), s1_fire)
 
   val s2_redirect_s1_last_pred_vec = preds_needs_redirect_vec(previous_s1_pred_info, resp.s2)
 
@@ -644,7 +642,7 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
   val shift = redirect.cfiUpdate.shift
   val addIntoHist = redirect.cfiUpdate.addIntoHist
   // TODO: remove these below
-  val shouldShiftVec = Mux(shift === 0.U, VecInit(0.U((1 << (log2Ceil(numBr) + 1)).W).asBools), VecInit((LowerMask(1.U << (shift-1.U))).asBools()))
+  val shouldShiftVec = Mux(shift === 0.U, VecInit(0.U((1 << (log2Ceil(numBr) + 1)).W).asBools), VecInit((LowerMask(1.U << (shift-1.U))).asBools))
   // TODO end
   val afhob = redirect.cfiUpdate.afhob
   val lastBrNumOH = redirect.cfiUpdate.lastBrNumOH

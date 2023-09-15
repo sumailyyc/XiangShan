@@ -17,7 +17,7 @@
 package xiangshan
 
 import chisel3._
-import chipsalliance.rocketchip.config.{Config, Parameters}
+import org.chipsalliance.cde.config.{Config, Parameters}
 import chisel3.util.{Valid, ValidIO}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
@@ -82,10 +82,12 @@ class XSTileMisc()(implicit p: Parameters) extends LazyModule
   beu.node := TLBuffer.chainNode(1) := mmio_xbar
   mmio_port := TLBuffer() := mmio_xbar
 
-  lazy val module = new LazyModuleImp(this){
+  class XSTileMiscImp(wrapper: LazyModule) extends LazyModuleImp(wrapper) {
     val beu_errors = IO(Input(chiselTypeOf(beu.module.io.errors)))
     beu.module.io.errors <> beu_errors
   }
+
+  lazy val module = new XSTileMiscImp(this)
 }
 
 class XSTile()(implicit p: Parameters) extends LazyModule
@@ -145,7 +147,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   misc.i_mmio_port := core.frontend.instrUncache.clientNode
   misc.d_mmio_port := core.memBlock.uncache.clientNode
 
-  lazy val module = new LazyModuleImp(this){
+  class XSTileImp(wrapper: LazyModule) extends LazyModuleImp(wrapper) {
     val io = IO(new Bundle {
       val hartId = Input(UInt(64.W))
       val reset_vector = Input(UInt(PAddrBits.W))
@@ -162,6 +164,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     if (l2cache.isDefined) {
       // TODO: add perfEvents of L2
       // core.module.io.perfEvents.zip(l2cache.get.module.io.perfEvents.flatten).foreach(x => x._1.value := x._2)
+      core.module.io.perfEvents <> DontCare
     }
     else {
       core.module.io.perfEvents <> DontCare
@@ -194,4 +197,6 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     )
     ResetGen(resetChain, reset, !debugOpts.FPGAPlatform)
   }
+
+  lazy val module = new XSTileImp(this)
 }

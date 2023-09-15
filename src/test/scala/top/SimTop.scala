@@ -16,19 +16,39 @@
 
 package top
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import device.{AXI4MemorySlave, SimJTAG}
 import difftest._
 import freechips.rocketchip.diplomacy.{DisableMonitors, LazyModule}
-import utility.FileRegisters
-import utility.ChiselDB
-import utility.GTimer
-import xiangshan.DebugOptionsKey
-import utility.Constantin
+import utility.{ChiselDB, Constantin, FileRegisters, GTimer}
+import xiangshan.{DebugOptionsKey, XSCoreParamsKey, XSModule, XSTileKey}
+import xiangshan.mem.LqPtr
+import system.SoCParamsKey
 
 class SimTop(implicit p: Parameters) extends Module {
+  ExcitingUtils.register(
+    p(XSTileKey).map { coreParams =>
+      val newP = p.alterPartial({ case XSCoreParamsKey => coreParams })
+      Map(
+        s"L2MissMatch_${coreParams.HartId}" -> Bool(),
+        s"L3MissMatch_${coreParams.HartId}" -> Bool(),
+        s"miss_in_dtlb_${coreParams.HartId}" -> Bool(),
+        s"rob_head_vaddr_${coreParams.HartId}" -> Valid(UInt(coreParams.VAddrBits.W)),
+        s"rob_head_paddr_${coreParams.HartId}" -> Valid(UInt(p(SoCParamsKey).PAddrBits.W)),
+        s"rob_head_lqIdx_${coreParams.HartId}" -> Valid(new LqPtr()(newP)),
+        s"rob_head_ls_issue_${coreParams.HartId}" -> Bool(),
+        s"load_l1_miss_${coreParams.HartId}" -> Bool(),
+        s"load_tlb_replay_stall_${coreParams.HartId}" -> Bool(),
+        s"load_tlb_miss_stall_${coreParams.HartId}" -> Bool(),
+        s"load_vio_replay_stall_${coreParams.HartId}" -> Bool(),
+        s"load_mshr_replay_stall_${coreParams.HartId}" -> Bool(),
+        s"rob_head_other_replay_${coreParams.HartId}" -> Bool()
+      )
+    }.flatten.toMap
+  )
+
   val debugOpts = p(DebugOptionsKey)
 
   val l_soc = LazyModule(new XSTop())
@@ -86,47 +106,43 @@ class SimTop(implicit p: Parameters) extends Module {
 
   simMMIO.io.uart <> io.uart
 
-  if (!debugOpts.FPGAPlatform && (debugOpts.EnableDebug || debugOpts.EnablePerfDebug)) {
-    val timer = GTimer()
-    val logEnable = (timer >= io.logCtrl.log_begin) && (timer < io.logCtrl.log_end)
-    ExcitingUtils.addSource(logEnable, "DISPLAY_LOG_ENABLE")
-    ExcitingUtils.addSource(timer, "logTimestamp")
-  }
+  val timer = if (!debugOpts.FPGAPlatform && (debugOpts.EnableDebug || debugOpts.EnablePerfDebug)) GTimer() else WireDefault(0.U(64.W))
+  val logEnable =
+    if (!debugOpts.FPGAPlatform && (debugOpts.EnableDebug || debugOpts.EnablePerfDebug))
+      (timer >= io.logCtrl.log_begin) && (timer < io.logCtrl.log_end)
+    else WireDefault(false.B)
+  val clean = if (!debugOpts.FPGAPlatform && debugOpts.EnablePerfDebug) WireDefault(io.perfInfo.clean) else WireDefault(false.B)
+  val dump = if (!debugOpts.FPGAPlatform && debugOpts.EnablePerfDebug) WireDefault(io.perfInfo.dump) else WireDefault(false.B)
 
-  if (!debugOpts.FPGAPlatform && debugOpts.EnablePerfDebug) {
-    val clean = io.perfInfo.clean
-    val dump = io.perfInfo.dump
-    ExcitingUtils.addSource(clean, "XSPERF_CLEAN")
-    ExcitingUtils.addSource(dump, "XSPERF_DUMP")
-  }
+  dontTouch(timer)
+  dontTouch(logEnable)
+  dontTouch(clean)
+  dontTouch(dump)
 
   // Check and dispaly all source and sink connections
-  ExcitingUtils.fixConnections()
-  ExcitingUtils.checkAndDisplay()
+  ExcitingUtils.connectAndDisplay()
 }
 
 object SimTop extends App {
-  override def main(args: Array[String]): Unit = {
-    // Keep this the same as TopMain except that SimTop is used here instead of XSTop
-    val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
+  // Keep this the same as TopMain except that SimTop is used here instead of XSTop
+  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
 
-    // tools: init to close dpi-c when in fpga
-    val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-    val enableChiselDB = config(DebugOptionsKey).EnableChiselDB
-    val enableConstantin = config(DebugOptionsKey).EnableConstantin
-    Constantin.init(enableConstantin && !envInFPGA)
-    ChiselDB.init(enableChiselDB && !envInFPGA)
+  // tools: init to close dpi-c when in fpga
+  val envInFPGA = config(DebugOptionsKey).FPGAPlatform
+  val enableChiselDB = config(DebugOptionsKey).EnableChiselDB
+  val enableConstantin = config(DebugOptionsKey).EnableConstantin
+  Constantin.init(enableConstantin && !envInFPGA)
+  ChiselDB.init(enableChiselDB && !envInFPGA)
 
-    Generator.execute(
-      firrtlOpts,
-      DisableMonitors(p => new SimTop()(p))(config),
-      firrtlComplier,
-      firtoolOpts
-    )
+  Generator.execute(
+    firrtlOpts,
+    DisableMonitors(p => new SimTop()(p))(config),
+    firrtlComplier,
+    firtoolOpts
+  )
 
-    // tools: write cpp files
-    ChiselDB.addToFileRegisters
-    Constantin.addToFileRegisters
-    FileRegisters.write(fileDir = "./build")
-  }
+  // tools: write cpp files
+  ChiselDB.addToFileRegisters
+  Constantin.addToFileRegisters
+  FileRegisters.write(fileDir = "./build")
 }

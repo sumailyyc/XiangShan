@@ -17,7 +17,7 @@ package xiangshan.mem
 
 import chisel3._
 import chisel3.util._
-import chipsalliance.rocketchip.config._
+import org.chipsalliance.cde.config._
 import xiangshan._
 import xiangshan.backend.rob.{RobPtr, RobLsqIO}
 import xiangshan.cache._
@@ -366,7 +366,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   // l2 will send GrantData in next 2/3 cycle, wake up the missed load early and sent them to load pipe, so them will hit the data in D channel or mshr in load S1
   val s0_loadHintWakeMask = VecInit((0 until LoadQueueReplaySize).map(i => {
     allocated(i) && !scheduled(i) && blockByCacheMiss(i) && missMSHRId(i) === io.l2_hint.bits.sourceId && io.l2_hint.valid
-  })).asUInt()
+  })).asUInt
   // l2 will send 2 beats data in 2 cycles, so if data needed by this load is in first beat, select it this cycle, otherwise next cycle
   val s0_loadHintSelMask = s0_loadHintWakeMask & VecInit(dataInLastBeatReg.map(!_)).asUInt
   val s0_remLoadHintSelMask = VecInit((0 until LoadPipelineWidth).map(rem => getRemBits(s0_loadHintSelMask)(rem)))
@@ -747,23 +747,23 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   val lq_match      = rob_head_lq_match._1 && sourceVaddr.valid
   val lq_match_idx  = lq_match_bits.lqIdx.value
 
-  val rob_head_tlb_miss        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_TM)
-  val rob_head_nuke            = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_NK)
-  val rob_head_mem_amb         = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_MA)
-  val rob_head_confilct_replay = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_BC)
-  val rob_head_forward_fail    = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_FF)
-  val rob_head_mshrfull_replay = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DR)
-  val rob_head_dcache_miss     = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DM)
-  val rob_head_rar_nack        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAR)
-  val rob_head_raw_nack        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAW)
-  val rob_head_other_replay    = lq_match && (rob_head_rar_nack || rob_head_raw_nack || rob_head_forward_fail)
+  val rob_head_tlb_miss        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_TM))
+  val rob_head_nuke            = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_NK))
+  val rob_head_mem_amb         = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_MA))
+  val rob_head_confilct_replay = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_BC))
+  val rob_head_forward_fail    = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_FF))
+  val rob_head_mshrfull_replay = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DR))
+  val rob_head_dcache_miss     = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DM))
+  val rob_head_rar_nack        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAR))
+  val rob_head_raw_nack        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAW))
+  val rob_head_other_replay    = WireDefault(lq_match && (rob_head_rar_nack || rob_head_raw_nack || rob_head_forward_fail))
 
-  val rob_head_vio_replay = rob_head_nuke || rob_head_mem_amb
+  val rob_head_vio_replay = WireDefault(rob_head_nuke || rob_head_mem_amb)
 
   val rob_head_miss_in_dtlb = WireInit(false.B)
   ExcitingUtils.addSink(rob_head_miss_in_dtlb, s"miss_in_dtlb_${coreParams.HartId}", ExcitingUtils.Perf)
-  ExcitingUtils.addSource(rob_head_tlb_miss && !rob_head_miss_in_dtlb, s"load_tlb_replay_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
-  ExcitingUtils.addSource(rob_head_tlb_miss &&  rob_head_miss_in_dtlb, s"load_tlb_miss_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
+  ExcitingUtils.addSource(WireDefault(rob_head_tlb_miss && !rob_head_miss_in_dtlb), s"load_tlb_replay_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
+  ExcitingUtils.addSource(WireDefault(rob_head_tlb_miss &&  rob_head_miss_in_dtlb), s"load_tlb_miss_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
   ExcitingUtils.addSource(rob_head_vio_replay, s"load_vio_replay_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
   ExcitingUtils.addSource(rob_head_mshrfull_replay, s"load_mshr_replay_stall_${coreParams.HartId}", ExcitingUtils.Perf, true)
   // ExcitingUtils.addSource(rob_head_confilct_replay, s"load_l1_cache_stall_with_bank_conflict_${coreParams.HartId}", ExcitingUtils.Perf, true)

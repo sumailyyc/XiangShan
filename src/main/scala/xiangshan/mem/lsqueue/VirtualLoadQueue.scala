@@ -17,7 +17,7 @@ package xiangshan.mem
 
 import chisel3._ 
 import chisel3.util._
-import chipsalliance.rocketchip.config._
+import org.chipsalliance.cde.config._
 import xiangshan._
 import xiangshan.backend.rob.{RobPtr, RobLsqIO}
 import xiangshan.ExceptionNO._
@@ -124,7 +124,7 @@ class VirtualLoadQueue(implicit p: Parameters) extends XSModule
   // cycle 2: update deqPtr
   val deqPtrUpdateEna = lastCommitCount =/= 0.U 
   deqPtrNext := deqPtr + lastCommitCount
-  deqPtr := RegEnable(next = deqPtrNext, init = 0.U.asTypeOf(new LqPtr), enable = deqPtrUpdateEna)
+  deqPtr := RegEnable(deqPtrNext, 0.U.asTypeOf(new LqPtr), deqPtrUpdateEna)
 
   io.lqDeq := RegNext(lastCommitCount)
   io.lqCancelCnt := RegNext(lastCycleCancelCount + lastEnqCancel)

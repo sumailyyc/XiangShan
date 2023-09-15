@@ -16,7 +16,7 @@
 
 package xiangshan.cache
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.tilelink.ClientMetadata
@@ -90,10 +90,10 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
 
   // ready can wait for valid
   io.lsu.req.ready := (!io.nack && not_nacked_ready) || (io.nack && nacked_ready)
-  io.meta_read.valid := io.lsu.req.fire() && !io.nack
-  io.tag_read.valid := io.lsu.req.fire() && !io.nack
+  io.meta_read.valid := io.lsu.req.fire && !io.nack
+  io.tag_read.valid := io.lsu.req.fire && !io.nack
   
-  val s0_valid = io.lsu.req.fire()
+  val s0_valid = io.lsu.req.fire
   val s0_req = io.lsu.req.bits
   val s0_fire = s0_valid && s1_ready
   val s0_vaddr = s0_req.vaddr
@@ -287,7 +287,7 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
   val s2_fire = s2_valid
 
   when (s1_fire) { s2_valid := !io.lsu.s1_kill }
-  .elsewhen(io.lsu.resp.fire()) { s2_valid := false.B }
+  .elsewhen(io.lsu.resp.fire) { s2_valid := false.B }
 
   dump_pipeline_reqs("LoadPipe s2", s2_valid, s2_req)
 
@@ -377,7 +377,7 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
   io.lsu.s2_first_hit := s2_req.isFirstIssue && s2_hit
   // load pipe need replay when there is a bank conflict or wpu predict fail
   resp.bits.replay := DontCare 
-  resp.bits.replayCarry.valid := (resp.bits.miss && (!io.miss_req.fire() || s2_nack)) || io.bank_conflict_slow || s2_wpu_pred_fail
+  resp.bits.replayCarry.valid := (resp.bits.miss && (!io.miss_req.fire || s2_nack)) || io.bank_conflict_slow || s2_wpu_pred_fail
   resp.bits.replayCarry.real_way_en := s2_real_way_en
   resp.bits.meta_prefetch := s2_hit_prefetch
   resp.bits.meta_access := s2_hit_access
@@ -416,7 +416,7 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
   io.lsu.s1_disable_fast_wakeup := io.disable_ld_fast_wakeup
   io.lsu.s2_bank_conflict := io.bank_conflict_slow
   io.lsu.s2_wpu_pred_fail := s2_wpu_pred_fail_and_real_hit 
-  io.lsu.s2_mq_nack       := (resp.bits.miss && (!io.miss_req.fire() || s2_nack))
+  io.lsu.s2_mq_nack       := (resp.bits.miss && (!io.miss_req.fire || s2_nack))
   assert(RegNext(s1_ready && s2_ready), "load pipeline should never be blocked")
 
   // --------------------------------------------------------------------------------
@@ -464,7 +464,7 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
   if (!cfg.updateReplaceOn2ndmiss) {
     // replacement is only updated on 1st miss
     // io.replace_access.valid := RegNext(RegNext(
-    //   RegNext(io.meta_read.fire()) && s1_valid && !io.lsu.s1_kill) &&
+    //   RegNext(io.meta_read.fire) && s1_valid && !io.lsu.s1_kill) &&
     //   !s2_nack_no_mshr &&
     //   !s2_miss_merged
     // )
@@ -475,7 +475,7 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
     // replacement is updated on both 1st and 2nd miss
     // timing is worse than !cfg.updateReplaceOn2ndmiss
     // io.replace_access.valid := RegNext(RegNext(
-    //   RegNext(io.meta_read.fire()) && s1_valid && !io.lsu.s1_kill) &&
+    //   RegNext(io.meta_read.fire) && s1_valid && !io.lsu.s1_kill) &&
     //   !s2_nack_no_mshr &&
     //   // replacement is updated on 2nd miss only when this req is firstly issued
     //   (!s2_miss_merged || s2_req.isFirstIssue)
@@ -518,27 +518,27 @@ class LoadPipe(id: Int)(implicit p: Parameters) extends DCacheModule with HasPer
   }
 
   // performance counters
-  XSPerfAccumulate("load_req", io.lsu.req.fire())
+  XSPerfAccumulate("load_req", io.lsu.req.fire)
   XSPerfAccumulate("load_s1_kill", s1_fire && io.lsu.s1_kill)
   XSPerfAccumulate("load_hit_way", s1_fire && s1_tag_match_dup_dc)
-  XSPerfAccumulate("load_replay", io.lsu.resp.fire() && resp.bits.replay)
-  XSPerfAccumulate("load_replay_for_dcache_data_nack", io.lsu.resp.fire() && resp.bits.replay && s2_nack_data)
-  XSPerfAccumulate("load_replay_for_dcache_no_mshr", io.lsu.resp.fire() && resp.bits.replay && s2_nack_no_mshr)
-  XSPerfAccumulate("load_replay_for_dcache_conflict", io.lsu.resp.fire() && resp.bits.replay && io.bank_conflict_slow)
-  XSPerfAccumulate("load_replay_for_dcache_wpu_pred_fail", io.lsu.resp.fire() && resp.bits.replay && s2_wpu_pred_fail)
-  XSPerfAccumulate("load_hit", io.lsu.resp.fire() && !real_miss)
-  XSPerfAccumulate("load_miss", io.lsu.resp.fire() && real_miss)
-  XSPerfAccumulate("load_succeed", io.lsu.resp.fire() && !resp.bits.miss && !resp.bits.replay)
-  XSPerfAccumulate("load_miss_or_conflict", io.lsu.resp.fire() && resp.bits.miss)
+  XSPerfAccumulate("load_replay", io.lsu.resp.fire && resp.bits.replay)
+  XSPerfAccumulate("load_replay_for_dcache_data_nack", io.lsu.resp.fire && resp.bits.replay && s2_nack_data)
+  XSPerfAccumulate("load_replay_for_dcache_no_mshr", io.lsu.resp.fire && resp.bits.replay && s2_nack_no_mshr)
+  XSPerfAccumulate("load_replay_for_dcache_conflict", io.lsu.resp.fire && resp.bits.replay && io.bank_conflict_slow)
+  XSPerfAccumulate("load_replay_for_dcache_wpu_pred_fail", io.lsu.resp.fire && resp.bits.replay && s2_wpu_pred_fail)
+  XSPerfAccumulate("load_hit", io.lsu.resp.fire && !real_miss)
+  XSPerfAccumulate("load_miss", io.lsu.resp.fire && real_miss)
+  XSPerfAccumulate("load_succeed", io.lsu.resp.fire && !resp.bits.miss && !resp.bits.replay)
+  XSPerfAccumulate("load_miss_or_conflict", io.lsu.resp.fire && resp.bits.miss)
   XSPerfAccumulate("actual_ld_fast_wakeup", s1_fire && s1_tag_match_dup_dc && !io.disable_ld_fast_wakeup)
-  XSPerfAccumulate("ideal_ld_fast_wakeup", io.banked_data_read.fire() && s1_tag_match_dup_dc)
+  XSPerfAccumulate("ideal_ld_fast_wakeup", io.banked_data_read.fire && s1_tag_match_dup_dc)
 
   val perfEvents = Seq(
-    ("load_req                 ", io.lsu.req.fire()                                               ),
-    ("load_replay              ", io.lsu.resp.fire() && resp.bits.replay                          ),
-    ("load_replay_for_data_nack", io.lsu.resp.fire() && resp.bits.replay && s2_nack_data          ),
-    ("load_replay_for_no_mshr  ", io.lsu.resp.fire() && resp.bits.replay && s2_nack_no_mshr       ),
-    ("load_replay_for_conflict ", io.lsu.resp.fire() && resp.bits.replay && io.bank_conflict_slow ),
+    ("load_req                 ", io.lsu.req.fire                                               ),
+    ("load_replay              ", io.lsu.resp.fire && resp.bits.replay                          ),
+    ("load_replay_for_data_nack", io.lsu.resp.fire && resp.bits.replay && s2_nack_data          ),
+    ("load_replay_for_no_mshr  ", io.lsu.resp.fire && resp.bits.replay && s2_nack_no_mshr       ),
+    ("load_replay_for_conflict ", io.lsu.resp.fire && resp.bits.replay && io.bank_conflict_slow ),
   )
   generatePerfEvent()
 }

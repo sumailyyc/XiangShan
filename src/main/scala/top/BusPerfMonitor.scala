@@ -16,7 +16,7 @@
 
 package top
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.diplomacy.{AdapterNode, LazyModule, LazyModuleImp}
 import freechips.rocketchip.tilelink._
 import chisel3._
@@ -49,7 +49,8 @@ class BusPerfMonitorImp(outer: BusPerfMonitor, name: String, stat_latency: Boole
 
   outer.node.in.zip(outer.node.out).foreach{
     case ((in, edgeIn), (out, edgeOut)) =>
-      out <> in
+      //out <> in
+      out :<>= in
   }
 
   def PERF_CHN[T <: TLChannel](clientName: String, chn: DecoupledIO[T]) = {

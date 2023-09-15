@@ -16,9 +16,8 @@
 
 package xiangshan.cache.mmu
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
-import chisel3.experimental.{ExtModule, chiselName}
 import chisel3.util._
 import utils._
 import utility._
@@ -83,7 +82,6 @@ class BankedAsyncDataModuleTemplateWithDup[T <: Data](
   }
 }
 
-@chiselName
 class TLBFA(
   parentName: String,
   ports: Int,
@@ -107,7 +105,7 @@ class TLBFA(
     val access = io.access(i)
 
     val vpn = req.bits.vpn
-    val vpn_reg = RegEnable(vpn, req.fire())
+    val vpn_reg = RegEnable(vpn, req.fire)
     val vpn_gen_ppn = if(saveLevel) vpn else vpn_reg
 
     val refill_mask = Mux(io.w.valid, UIntToOH(io.w.bits.wayIdx), 0.U(nWays.W))
@@ -115,7 +113,7 @@ class TLBFA(
 
     hitVec.suggestName("hitVec")
 
-    val hitVecReg = RegEnable(hitVec, req.fire())
+    val hitVecReg = RegEnable(hitVec, req.fire)
     // Sector tlb may trigger multi-hit, see def "wbhit"
     XSPerfAccumulate(s"port${i}_multi_hit", !(!resp.valid || (PopCount(hitVecReg) === 0.U || PopCount(hitVecReg) === 1.U)))
     // assert(!resp.valid || (PopCount(hitVecReg) === 0.U || PopCount(hitVecReg) === 1.U), s"${parentName} fa port${i} multi-hit")
@@ -204,27 +202,26 @@ class TLBFA(
     n
   }
 
-  XSPerfAccumulate(s"access", io.r.resp.map(_.valid.asUInt()).fold(0.U)(_ + _))
-  XSPerfAccumulate(s"hit", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt() + _.asUInt()))
+  XSPerfAccumulate(s"access", io.r.resp.map(_.valid.asUInt).fold(0.U)(_ + _))
+  XSPerfAccumulate(s"hit", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt + _.asUInt))
 
   for (i <- 0 until nWays) {
     XSPerfAccumulate(s"access${i}", io.r.resp.zip(io.access.map(acc => UIntToOH(acc.touch_ways.bits))).map{ case (a, b) =>
-      a.valid && a.bits.hit && b(i)}.fold(0.U)(_.asUInt() + _.asUInt()))
+      a.valid && a.bits.hit && b(i)}.fold(0.U)(_.asUInt + _.asUInt))
   }
   for (i <- 0 until nWays) {
     XSPerfAccumulate(s"refill${i}", io.w.valid && io.w.bits.wayIdx === i.U)
   }
 
   val perfEvents = Seq(
-    ("tlbstore_access", io.r.resp.map(_.valid.asUInt()).fold(0.U)(_ + _)                            ),
-    ("tlbstore_hit   ", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt() + _.asUInt())),
+    ("tlbstore_access", io.r.resp.map(_.valid.asUInt).fold(0.U)(_ + _)                            ),
+    ("tlbstore_hit   ", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt + _.asUInt)),
   )
   generatePerfEvent()
 
   println(s"${parentName} tlb_fa: nSets${nSets} nWays:${nWays}")
 }
 
-@chiselName
 class TLBSA(
   parentName: String,
   ports: Int,
@@ -254,12 +251,12 @@ class TLBSA(
     val access = io.access(i)
 
     val vpn = req.bits.vpn
-    val vpn_reg = RegEnable(vpn, req.fire())
+    val vpn_reg = RegEnable(vpn, req.fire)
 
     val ridx = get_set_idx(vpn, nSets)
     val v_resize = v.asTypeOf(Vec(VPRE_SELECT, Vec(VPOST_SELECT, UInt(nWays.W))))
     val vidx_resize = RegNext(v_resize(get_set_idx(drop_set_idx(vpn, VPOST_SELECT), VPRE_SELECT)))
-    val vidx = vidx_resize(get_set_idx(vpn_reg, VPOST_SELECT)).asBools.map(_ && RegNext(req.fire()))
+    val vidx = vidx_resize(get_set_idx(vpn_reg, VPOST_SELECT)).asBools.map(_ && RegNext(req.fire))
     val vidx_bypass = RegNext((entries.io.waddr === ridx) && entries.io.wen)
     entries.io.raddr(i) := ridx
 
@@ -333,8 +330,8 @@ class TLBSA(
   io.victim.out := DontCare
   io.victim.out.valid := false.B
 
-  XSPerfAccumulate(s"access", io.r.req.map(_.valid.asUInt()).fold(0.U)(_ + _))
-  XSPerfAccumulate(s"hit", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt() + _.asUInt()))
+  XSPerfAccumulate(s"access", io.r.req.map(_.valid.asUInt).fold(0.U)(_ + _))
+  XSPerfAccumulate(s"hit", io.r.resp.map(a => a.valid && a.bits.hit).fold(0.U)(_.asUInt + _.asUInt))
 
   for (i <- 0 until nSets) {
     XSPerfAccumulate(s"refill${i}", (io.w.valid || io.victim.in.valid) &&
@@ -345,7 +342,7 @@ class TLBSA(
   for (i <- 0 until nSets) {
     XSPerfAccumulate(s"hit${i}", io.r.resp.map(a => a.valid & a.bits.hit)
       .zip(io.r.req.map(a => RegNext(get_set_idx(a.bits.vpn, nSets)) === i.U))
-      .map{a => (a._1 && a._2).asUInt()}
+      .map{a => (a._1 && a._2).asUInt}
       .fold(0.U)(_ + _)
     )
   }
@@ -353,7 +350,7 @@ class TLBSA(
   for (i <- 0 until nSets) {
     XSPerfAccumulate(s"access${i}", io.r.resp.map(_.valid)
       .zip(io.r.req.map(a => RegNext(get_set_idx(a.bits.vpn, nSets)) === i.U))
-      .map{a => (a._1 && a._2).asUInt()}
+      .map{a => (a._1 && a._2).asUInt}
       .fold(0.U)(_ + _)
     )
   }
@@ -361,7 +358,6 @@ class TLBSA(
   println(s"${parentName} tlb_sa: nSets:${nSets} nWays:${nWays}")
 }
 
-@chiselName
 class TLBFakeSP(
              ports: Int,
              nSets: Int,
@@ -416,7 +412,6 @@ class TLBFakeSP(
 
 }
 
-@chiselName
 class TLBFakeNP(
              ports: Int,
              nDups: Int,

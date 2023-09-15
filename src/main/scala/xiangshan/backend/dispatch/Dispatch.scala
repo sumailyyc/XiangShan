@@ -16,7 +16,7 @@
 
 package xiangshan.backend.dispatch
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import difftest._
@@ -104,7 +104,7 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
   val singleStepStatus = RegInit(false.B)
   when (io.redirect.valid) {
     singleStepStatus := false.B
-  }.elsewhen (io.singleStep && io.fromRename(0).fire()) {
+  }.elsewhen (io.singleStep && io.fromRename(0).fire) {
     singleStepStatus := true.B
   }
   XSDebug(singleStepStatus, "Debug Mode: Singlestep status is asserted\n")
@@ -113,7 +113,7 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
   val updatedCommitType = Wire(Vec(RenameWidth, CommitType()))
   val checkpoint_id = RegInit(0.U(64.W))
   checkpoint_id := checkpoint_id + PopCount((0 until RenameWidth).map(i =>
-    io.fromRename(i).fire()
+    io.fromRename(i).fire
   ))
 
 
@@ -133,7 +133,7 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
       updatedUop(i).psrc(0) := 0.U
     }
 
-    io.lfst.req(i).valid := io.fromRename(i).fire() && updatedUop(i).cf.storeSetHit
+    io.lfst.req(i).valid := io.fromRename(i).fire && updatedUop(i).cf.storeSetHit
     io.lfst.req(i).bits.isstore := isStore(i)
     io.lfst.req(i).bits.ssid := updatedUop(i).cf.ssid
     io.lfst.req(i).bits.robIdx := updatedUop(i).robIdx // speculatively assigned in rename
@@ -148,7 +148,7 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
 
     // update singleStep
     updatedUop(i).ctrl.singleStep := io.singleStep && (if (i == 0) singleStepStatus else true.B)
-    when (io.fromRename(i).fire()) {
+    when (io.fromRename(i).fire) {
       XSDebug(updatedUop(i).cf.trigger.getHitFrontend, s"Debug Mode: inst ${i} has frontend trigger exception\n")
       XSDebug(updatedUop(i).ctrl.singleStep, s"Debug Mode: inst ${i} has single step exception\n")
     }
@@ -159,7 +159,7 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
         debug_runahead_checkpoint_id := checkpoint_id
       } else {
         debug_runahead_checkpoint_id := checkpoint_id + PopCount((0 until i).map(i =>
-          io.fromRename(i).fire()
+          io.fromRename(i).fire
         ))
       }
     }
@@ -167,16 +167,16 @@ class Dispatch(implicit p: Parameters) extends XSModule with HasPerfEvents {
 
   // store set perf count
   XSPerfAccumulate("waittable_load_wait", PopCount((0 until RenameWidth).map(i =>
-    io.fromRename(i).fire() && io.fromRename(i).bits.cf.loadWaitBit && !isStore(i) && isLs(i)
+    io.fromRename(i).fire && io.fromRename(i).bits.cf.loadWaitBit && !isStore(i) && isLs(i)
   )))
   XSPerfAccumulate("storeset_load_wait", PopCount((0 until RenameWidth).map(i =>
-    io.fromRename(i).fire() && updatedUop(i).cf.loadWaitBit && !isStore(i) && isLs(i)
+    io.fromRename(i).fire && updatedUop(i).cf.loadWaitBit && !isStore(i) && isLs(i)
   )))
   XSPerfAccumulate("storeset_load_strict_wait", PopCount((0 until RenameWidth).map(i =>
-    io.fromRename(i).fire() && updatedUop(i).cf.loadWaitBit && updatedUop(i).cf.loadWaitStrict && !isStore(i) && isLs(i)
+    io.fromRename(i).fire && updatedUop(i).cf.loadWaitBit && updatedUop(i).cf.loadWaitStrict && !isStore(i) && isLs(i)
   )))
   XSPerfAccumulate("storeset_store_wait", PopCount((0 until RenameWidth).map(i =>
-    io.fromRename(i).fire() && updatedUop(i).cf.loadWaitBit && isStore(i)
+    io.fromRename(i).fire && updatedUop(i).cf.loadWaitBit && isStore(i)
   )))
 
   /**

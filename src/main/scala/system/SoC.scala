@@ -16,7 +16,7 @@
 
 package system
 
-import chipsalliance.rocketchip.config.{Field, Parameters}
+import org.chipsalliance.cde.config.{Field, Parameters}
 import chisel3._
 import chisel3.util._
 import device.{DebugModule, TLPMA, TLPMAIO}
@@ -147,7 +147,7 @@ trait HaveAXI4MemPort {
   ))
 
   val mem_xbar = TLXbar()
-  val l3_mem_pmu = BusPerfMonitor(name = "L3_Mem", enable = !debugOpts.FPGAPlatform, stat_latency = true, add_reqkey = true)
+  val l3_mem_pmu = BusPerfMonitor(name = "L3_Mem", enable = !debugOpts.FPGAPlatform, stat_latency = true/*, add_reqkey = true*/)
   mem_xbar :=*
     TLBuffer.chainNode(2) :=
     TLCacheCork() :=
@@ -259,10 +259,11 @@ class SoCMisc()(implicit p: Parameters) extends BaseSoC
 
   class IntSourceNodeToModule(val num: Int)(implicit p: Parameters) extends LazyModule {
     val sourceNode = IntSourceNode(IntSourcePortSimple(num, ports = 1, sources = 1))
-    lazy val module = new LazyModuleImp(this){
+    class IntSourceNodeToModuleImp(wrapper: LazyModule) extends LazyModuleImp(wrapper) {
       val in = IO(Input(Vec(num, Bool())))
       in.zip(sourceNode.out.head._1).foreach{ case (i, s) => s := i }
     }
+    lazy val module = new IntSourceNodeToModuleImp(this)
   }
 
   val plic = LazyModule(new TLPLIC(PLICParams(0x3c000000L), 8))
@@ -290,9 +291,9 @@ class SoCMisc()(implicit p: Parameters) extends BaseSoC
     TLBuffer.chainNode(4) :=
     peripheralXbar
 
-  lazy val module = new LazyModuleImp(this){
+  class SoCMiscImp(wrapper: LazyModule) extends LazyModuleImp(wrapper) {
 
-    val debug_module_io = IO(chiselTypeOf(debugModule.module.io))
+    val debug_module_io = IO(new debugModule.DebugModuleIO)
     val ext_intrs = IO(Input(UInt(NrExtIntr.W)))
     val rtc_clock = IO(Input(Bool()))
     val pll0_lock = IO(Input(Bool()))
@@ -342,4 +343,6 @@ class SoCMisc()(implicit p: Parameters) extends BaseSoC
       )
     )
   }
+
+  lazy val module = new SoCMiscImp(this)
 }

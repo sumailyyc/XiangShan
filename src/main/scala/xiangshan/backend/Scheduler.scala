@@ -16,7 +16,7 @@
 
 package xiangshan.backend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import difftest.{DifftestArchFpRegState, DifftestArchIntRegState}
@@ -47,7 +47,7 @@ class DispatchArbiter(func: Seq[MicroOp => Bool])(implicit p: Parameters) extend
     o.bits := io.in.bits
   }
 
-  io.in.ready := VecInit(io.out.map(_.fire())).asUInt.orR
+  io.in.ready := VecInit(io.out.map(_.fire)).asUInt.orR
 }
 
 object DispatchArbiter {
@@ -351,6 +351,8 @@ class SchedulerImp(outer: Scheduler) extends LazyModuleImp(outer) with HasXSPara
     } else None
     if (io.extra.fpStateReadIn.isDefined && numInFpStateRead > 0) {
       io.extra.fpStateReadIn.get <> readFpState.takeRight(numInFpStateRead)
+    } else if (io.extra.fpStateReadIn.isDefined) {
+      io.extra.fpStateReadIn.get <> DontCare
     }
     busyTable
   } else None
@@ -518,6 +520,8 @@ class SchedulerImp(outer: Scheduler) extends LazyModuleImp(outer) with HasXSPara
           val fromFp = if (numIntRfPorts > 0) isFp else false.B
           when (fromFp) {
             target := fpRfPorts.take(target.length)
+          }.otherwise {
+            target := DontCare
           }
         }
       }

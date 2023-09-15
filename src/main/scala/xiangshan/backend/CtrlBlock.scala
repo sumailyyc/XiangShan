@@ -16,7 +16,7 @@
 
 package xiangshan.backend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
@@ -323,7 +323,7 @@ class CtrlBlockImp(outer: CtrlBlock)(implicit p: Parameters) extends LazyModuleI
         wb_next.bits.uop.debugInfo.writebackTime := timer
       }
       exuOutput
-    }))
+    }).toSeq)
   }
 
   val decode = Module(new DecodeStage)

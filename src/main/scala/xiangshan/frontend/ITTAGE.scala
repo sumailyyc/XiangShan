@@ -16,21 +16,14 @@
 
 package xiangshan.frontend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import xiangshan._
 import utils._
 import utility._
-import chisel3.experimental.chiselName
-import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
-import firrtl.stage.RunFirrtlTransformAnnotation
-import firrtl.transforms.RenameModules
-import freechips.rocketchip.transforms.naming.RenameDesiredNames
 
 import scala.math.min
-import scala.util.matching.Regex
-import firrtl.passes.wiring.Wiring
 
 trait ITTageParams extends HasXSParameter with HasBPUParameter {
 
@@ -141,7 +134,7 @@ class FakeITTageTable()(implicit p: Parameters) extends ITTageModule {
   io.resp := DontCare
 
 }
-@chiselName
+
 class ITTageTable
 (
   val nRows: Int, val histLen: Int, val tagLen: Int, val uBitPeriod: Int, val tableIdx: Int
@@ -354,8 +347,8 @@ class FakeITTage(implicit p: Parameters) extends BaseITTage {
   io.s1_ready := true.B
   io.s2_ready := true.B
 }
+
 // TODO: check target related logics
-@chiselName
 class ITTage(implicit p: Parameters) extends BaseITTage {
   override val meta_size = 0.U.asTypeOf(new ITTageMeta).getWidth
 

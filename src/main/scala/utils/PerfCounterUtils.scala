@@ -16,9 +16,10 @@
 
 package utils
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
+import utility.{ChiselDB, LogPerfHelper, LogPerfIO}
 import xiangshan.DebugOptionsKey
 import xiangshan._
 
@@ -40,19 +41,16 @@ object XSPerfAccumulate extends HasRegularPerfName {
     judgeName(perfName)
     val env = p(DebugOptionsKey)
     if (env.EnablePerfDebug && !env.FPGAPlatform) {
-      val logTimestamp = WireInit(0.U(64.W))
-      val perfClean = WireInit(false.B)
-      val perfDump = WireInit(false.B)
-      ExcitingUtils.addSink(logTimestamp, "logTimestamp")
-      ExcitingUtils.addSink(perfClean, "XSPERF_CLEAN")
-      ExcitingUtils.addSink(perfDump, "XSPERF_DUMP")
+      val helper = Module(new LogPerfHelper)
+      val perfClean = helper.io.clean
+      val perfDump = helper.io.dump
 
       val counter = RegInit(0.U(64.W))
       val next_counter = counter + perfCnt
       counter := Mux(perfClean, 0.U, next_counter)
 
       when (perfDump) {
-        XSPerfPrint(p"$perfName, $next_counter\n")
+        XSPerfPrint(p"$perfName, $next_counter\n")(helper.io)
       }
     }
   }
@@ -76,12 +74,9 @@ object XSPerfHistogram extends HasRegularPerfName {
     judgeName(perfName)
     val env = p(DebugOptionsKey)
     if (env.EnablePerfDebug && !env.FPGAPlatform) {
-      val logTimestamp = WireInit(0.U(64.W))
-      val perfClean = WireInit(false.B)
-      val perfDump = WireInit(false.B)
-      ExcitingUtils.addSink(logTimestamp, "logTimestamp")
-      ExcitingUtils.addSink(perfClean, "XSPERF_CLEAN")
-      ExcitingUtils.addSink(perfDump, "XSPERF_DUMP")
+      val helper = Module(new LogPerfHelper)
+      val perfClean = helper.io.clean
+      val perfDump = helper.io.dump
 
       val sum = RegInit(0.U(64.W))
       val nSamples = RegInit(0.U(64.W))
@@ -94,7 +89,7 @@ object XSPerfHistogram extends HasRegularPerfName {
       }
 
       when (perfDump) {
-        XSPerfPrint(p"${perfName}_mean, ${sum/nSamples}\n")
+        XSPerfPrint(p"${perfName}_mean, ${sum/nSamples}\n")(helper.io)
       }
       
       // drop each perfCnt value into a bin
@@ -128,7 +123,7 @@ object XSPerfHistogram extends HasRegularPerfName {
         }
 
         when (perfDump) {
-          XSPerfPrint(p"${perfName}_${binRangeStart}_${binRangeStop}, $counter\n")
+          XSPerfPrint(p"${perfName}_${binRangeStart}_${binRangeStop}, $counter\n")(helper.io)
         }
       }
     }
@@ -139,19 +134,16 @@ object XSPerfMax extends HasRegularPerfName {
     judgeName(perfName)
     val env = p(DebugOptionsKey)
     if (env.EnablePerfDebug && !env.FPGAPlatform) {
-      val logTimestamp = WireInit(0.U(64.W))
-      val perfClean = WireInit(false.B)
-      val perfDump = WireInit(false.B)
-      ExcitingUtils.addSink(logTimestamp, "logTimestamp")
-      ExcitingUtils.addSink(perfClean, "XSPERF_CLEAN")
-      ExcitingUtils.addSink(perfDump, "XSPERF_DUMP")
+      val helper = Module(new LogPerfHelper)
+      val perfClean = helper.io.clean
+      val perfDump = helper.io.dump
 
       val max = RegInit(0.U(64.W))
       val next_max = Mux(enable && (perfCnt > max), perfCnt, max)
       max := Mux(perfClean, 0.U, next_max)
 
       when (perfDump) {
-        XSPerfPrint(p"${perfName}_max, $next_max\n")
+        XSPerfPrint(p"${perfName}_max, $next_max\n")(helper.io)
       }
     }
   }
@@ -183,8 +175,8 @@ object TransactionLatencyCounter
 }
 
 object XSPerfPrint {
-  def apply(pable: Printable)(implicit p: Parameters): Any = {
-    XSLog(XSLogLevel.PERF)(true, true.B, pable)
+  def apply(pable: Printable)(ctrlInfo: LogPerfIO)(implicit p: Parameters): Any = {
+    XSLog(XSLogLevel.PERF)(ctrlInfo)(true, true.B, pable)
   }
 }
 
