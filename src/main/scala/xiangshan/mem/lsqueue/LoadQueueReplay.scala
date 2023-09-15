@@ -17,7 +17,7 @@ package xiangshan.mem
 
 import chisel3._
 import chisel3.util._
-import chipsalliance.rocketchip.config._
+import org.chipsalliance.cde.config._
 import xiangshan._
 import xiangshan.backend.rob.{RobLsqIO, RobPtr}
 import xiangshan.backend.fu.FuConfig.LduCfg
@@ -479,7 +479,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
 
     when (io.replay(i).fire) {
       sleep(s2_oldestSel(i).bits) := false.B
-      assert(allocated(s2_oldestSel(i).bits), s"LoadQueueReplay: why replay an invalid entry ${s2_oldestSel(i).bits} ?\n")
+      assert(allocated(s2_oldestSel(i).bits), p"LoadQueueReplay: why replay an invalid entry ${s2_oldestSel(i).bits} ?\n")
     }
   }
 

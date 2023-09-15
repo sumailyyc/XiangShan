@@ -16,7 +16,7 @@
 
 package xiangshan.cache
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import utils._
 import utility._
@@ -193,7 +193,7 @@ class DataSRAMBank(index: Int)(implicit p: Parameters) extends DCacheModule {
   val data_left = Mux1H(r_way_en_reg.tail(half), data_read.take(half))
   val data_right = Mux1H(r_way_en_reg.head(half), data_read.drop(half))
 
-  val sel_low = r_way_en_reg.tail(half).orR()
+  val sel_low = r_way_en_reg.tail(half).orR
   val row_data = Mux(sel_low, data_left, data_right)
 
   io.r.data := row_data
@@ -342,7 +342,7 @@ class SramedDataArray(implicit p: Parameters) extends AbstractBankedDataArray {
     io.read(rport_index).ready := !(rwhazard || rrhazard)
 
     // use way_en to select a way after data read out
-    assert(!(RegNext(io.read(rport_index).fire() && PopCount(io.read(rport_index).bits.way_en) > 1.U)))
+    assert(!(RegNext(io.read(rport_index).fire && PopCount(io.read(rport_index).bits.way_en) > 1.U)))
     way_en(rport_index) := io.read(rport_index).bits.way_en
   })
   io.readline.ready := !(rwhazard)
@@ -455,13 +455,13 @@ class SramedDataArray(implicit p: Parameters) extends AbstractBankedDataArray {
   // error detection
   // normal read ports
   (0 until LoadPipelineWidth).map(rport_index => {
-    io.read_error_delayed(rport_index) := RegNext(RegNext(io.read(rport_index).fire())) &&
+    io.read_error_delayed(rport_index) := RegNext(RegNext(io.read(rport_index).fire)) &&
       read_error_delayed_result(RegNext(RegNext(bank_addrs(rport_index))))(RegNext(RegNext(OHToUInt(way_en(rport_index))))) &&
       !RegNext(io.bank_conflict_slow(rport_index))
   })
   // readline port
-  io.readline_error_delayed := RegNext(RegNext(io.readline.fire())) &&
-    VecInit((0 until DCacheBanks).map(i => io.readline_resp(i).error_delayed)).asUInt().orR
+  io.readline_error_delayed := RegNext(RegNext(io.readline.fire)) &&
+    VecInit((0 until DCacheBanks).map(i => io.readline_resp(i).error_delayed)).asUInt.orR
 
   // write data_banks & ecc_banks
   val sram_waddr = addr_to_dcache_set(io.write.bits.addr)
@@ -628,7 +628,7 @@ class BankedDataArray(implicit p: Parameters) extends AbstractBankedDataArray {
     io.read(rport_index).ready := !(rwhazard || rrhazard)
 
     // use way_en to select a way after data read out
-    assert(!(RegNext(io.read(rport_index).fire() && PopCount(io.read(rport_index).bits.way_en) > 1.U)))
+    assert(!(RegNext(io.read(rport_index).fire && PopCount(io.read(rport_index).bits.way_en) > 1.U)))
     way_en(rport_index) := io.read(rport_index).bits.way_en
   })
   io.readline.ready := !(rwhazard)
@@ -740,13 +740,13 @@ class BankedDataArray(implicit p: Parameters) extends AbstractBankedDataArray {
   // error detection
   // normal read ports
   (0 until LoadPipelineWidth).map(rport_index => {
-    io.read_error_delayed(rport_index) := RegNext(RegNext(io.read(rport_index).fire())) &&
+    io.read_error_delayed(rport_index) := RegNext(RegNext(io.read(rport_index).fire)) &&
       read_bank_error_delayed(RegNext(RegNext(bank_addrs(rport_index)))) &&
       !RegNext(io.bank_conflict_slow(rport_index))
   })
   // readline port
-  io.readline_error_delayed := RegNext(RegNext(io.readline.fire())) &&
-    VecInit((0 until DCacheBanks).map(i => io.readline_resp(i).error_delayed)).asUInt().orR
+  io.readline_error_delayed := RegNext(RegNext(io.readline.fire)) &&
+    VecInit((0 until DCacheBanks).map(i => io.readline_resp(i).error_delayed)).asUInt.orR
 
   // write data_banks & ecc_banks
   val sram_waddr = addr_to_dcache_set(io.write.bits.addr)

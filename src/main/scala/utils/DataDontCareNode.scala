@@ -17,7 +17,7 @@
 package utils
 
 import chisel3._
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3.util.DecoupledIO
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
 import freechips.rocketchip.tilelink.{TLBundle, TLClientNode, TLIdentityNode, TLMasterParameters, TLMasterPortParameters}
@@ -32,7 +32,7 @@ class DataDontCareNode(a: Boolean = false, b: Boolean = false, c: Boolean = fals
     )
   )))
 
-  lazy val module = new LazyModuleImp(this) with HasTLDump{
+  lazy val module = new LazyModuleImp(this) with HasTLDump {
     val (out, _) = node.out(0)
     val (in, _) = node.in(0)
 

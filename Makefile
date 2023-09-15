@@ -27,7 +27,7 @@ SIMTOP  = top.SimTop
 IMAGE  ?= temp
 CONFIG ?= DefaultConfig
 NUM_CORES ?= 1
-MFC ?= 0
+MFC ?= 1
 
 FPGA_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(FPGATOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
 SIM_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(SIMTOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
@@ -35,8 +35,20 @@ SIM_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(SIMTOP):-o:$(@D)/$(@F).conf --gen-
 # select firrtl compiler
 ifeq ($(MFC),1)
 override FC_ARGS = --mfc
-override FPGA_MEM_ARGS = --infer-rw --firtool-opt -split-verilog --firtool-opt -o --firtool-opt build --firtool-opt -repl-seq-mem --firtool-opt -repl-seq-mem-circuit=$(FPGATOP) --firtool-opt -repl-seq-mem-file=XSTop.v.conf
-override SIM_MEM_ARGS = --infer-rw --firtool-opt -split-verilog --firtool-opt -o --firtool-opt build --firtool-opt -repl-seq-mem --firtool-opt -repl-seq-mem-circuit=$(SIMTOP) --firtool-opt -repl-seq-mem-file=SimTop.v.conf
+override FPGA_MEM_ARGS = --dump-fir \
+                         --firtool-opt -split-verilog \
+                         --firtool-opt -o \
+                         --firtool-opt build \
+                         --firtool-opt -repl-seq-mem \
+                         --firtool-opt -repl-seq-mem-file=XSTop.v.conf \
+                         --firtool-opt --disable-annotation-unknown
+override SIM_MEM_ARGS = --dump-fir \
+                        --firtool-opt -split-verilog \
+                        --firtool-opt -o \
+                        --firtool-opt build \
+                        --firtool-opt -repl-seq-mem \
+                        --firtool-opt -repl-seq-mem-file=SimTop.v.conf \
+                        --firtool-opt --disable-annotation-unknown
 endif
 
 

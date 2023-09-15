@@ -1,6 +1,6 @@
 package xiangshan.backend.datapath
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
@@ -25,21 +25,21 @@ class WbFuBusyTableImp(override val wrapper: WbFuBusyTable)(implicit  p: Paramet
   private val intRespRead = io.out.intRespRead
   private val vfRespRead = io.out.vfRespRead
   private val memRespRead = io.out.memRespRead
-  private val intAllWbConflictFlag = io.out.wbConflictRead.flatten.flatten.map(_.intConflict)
-  private val vfAllWbConflictFlag = io.out.wbConflictRead.flatten.flatten.map(_.vfConflict)
+  private val intAllWbConflictFlag = io.out.wbConflictRead.flatten.flatten.map(_.intConflict).toSeq
+  private val vfAllWbConflictFlag = io.out.wbConflictRead.flatten.flatten.map(_.vfConflict).toSeq
 
   private val intAllBusyTable = (intSchdBusyTable ++ vfSchdBusyTable ++ memSchdBusyTable).flatten.map(_.intWbBusyTable)
   private val vfAllBusyTable = (intSchdBusyTable ++ vfSchdBusyTable ++ memSchdBusyTable).flatten.map(_.vfWbBusyTable)
   private val intAllDeqRespSet = (intSchdBusyTable ++ vfSchdBusyTable ++ memSchdBusyTable).flatten.map(_.intDeqRespSet)
   private val vfAllDeqRespSet = (intSchdBusyTable ++ vfSchdBusyTable ++ memSchdBusyTable).flatten.map(_.vfDeqRespSet)
-  private val intAllRespRead = (intRespRead ++ vfRespRead ++ memRespRead).flatten.map(_.intWbBusyTable)
-  private val vfAllRespRead = (intRespRead ++ vfRespRead ++ memRespRead).flatten.map(_.vfWbBusyTable)
+  private val intAllRespRead = (intRespRead ++ vfRespRead ++ memRespRead).flatten.map(_.intWbBusyTable).toSeq
+  private val vfAllRespRead = (intRespRead ++ vfRespRead ++ memRespRead).flatten.map(_.vfWbBusyTable).toSeq
 
   private val allExuParams = params.allExuParams
-  private val intAllBusyTableWithParms = intAllBusyTable.zip(allExuParams)
-  private val vfAllBusyTableWithParms = vfAllBusyTable.zip(allExuParams)
-  private val intAllDeqRespSetWithParms = intAllDeqRespSet.zip(allExuParams)
-  private val vfAllDeqRespSetWithParms = vfAllDeqRespSet.zip(allExuParams)
+  private val intAllBusyTableWithParms = intAllBusyTable.zip(allExuParams).toSeq
+  private val vfAllBusyTableWithParms = vfAllBusyTable.zip(allExuParams).toSeq
+  private val intAllDeqRespSetWithParms = intAllDeqRespSet.zip(allExuParams).toSeq
+  private val vfAllDeqRespSetWithParms = vfAllDeqRespSet.zip(allExuParams).toSeq
 
   private val intWbLatencyMax = params.getIntWBExeGroup.map { case (portId, seq) => (portId, seq.map(_.intLatencyValMax).max, seq.forall(_.intLatencyCertain)) }
   private val vfWbLatencyMax = params.getVfWBExeGroup.map { case (portId, seq) => (portId, seq.map(_.vfLatencyValMax).max, seq.forall(_.vfLatencyCertain)) }
@@ -56,7 +56,7 @@ class WbFuBusyTableImp(override val wrapper: WbFuBusyTable)(implicit  p: Paramet
     }
   }
 
-  def writeBusyTable(wtBusyTable: Map[Int, Option[UInt]], busyTableWithParams: IndexedSeq[(Option[UInt], ExeUnitParams)], isInt: Boolean) = {
+  def writeBusyTable(wtBusyTable: Map[Int, Option[UInt]], busyTableWithParams: Seq[(Option[UInt], ExeUnitParams)], isInt: Boolean) = {
     wtBusyTable.foreach { case (portId, busyTable) =>
       if (busyTable.nonEmpty) {
         busyTable.get := busyTableWithParams.filter { case (busyTable, p) => hitWbPort(busyTable, p, portId, isInt) }.map(_._1.get).reduce(_ | _)
@@ -64,7 +64,7 @@ class WbFuBusyTableImp(override val wrapper: WbFuBusyTable)(implicit  p: Paramet
     }
   }
 
-  def writeConflict(wtConflict: Map[Int, Option[Bool]], deqRespSetWithParams: IndexedSeq[(Option[UInt], ExeUnitParams)], isInt: Boolean) = {
+  def writeConflict(wtConflict: Map[Int, Option[Bool]], deqRespSetWithParams: Seq[(Option[UInt], ExeUnitParams)], isInt: Boolean) = {
     wtConflict.foreach { case (portId, conflict) =>
       if (conflict.nonEmpty) {
         val deqRespSel = deqRespSetWithParams.filter { case (deqRespSet, p) => hitWbPort(deqRespSet, p, portId, isInt) }.map(_._1.get)
@@ -77,7 +77,7 @@ class WbFuBusyTableImp(override val wrapper: WbFuBusyTable)(implicit  p: Paramet
     }
   }
 
-  def readRes[T <: Data](sink: IndexedSeq[Option[T]], source: Map[Int, Option[T]], isInt: Boolean) = {
+  def readRes[T <: Data](sink: Seq[Option[T]], source: Map[Int, Option[T]], isInt: Boolean) = {
     for(i <- 0 until sink.size) {
       if(sink(i).nonEmpty) {
         sink(i).get := source.map { case (portId, src) =>

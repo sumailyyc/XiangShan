@@ -16,7 +16,7 @@
 
 package xiangshan.backend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
@@ -116,18 +116,18 @@ class CtrlBlockImp(
     delayed.valid := RegNext(valid && !killedByOlder)
     delayed.bits := RegEnable(x.bits, x.valid)
     delayed
-  })
+  }).toSeq
 
   private val exuPredecode = VecInit(
-    delayedNotFlushedWriteBack.filter(_.bits.redirect.nonEmpty).map(x => x.bits.predecodeInfo.get)
+    delayedNotFlushedWriteBack.filter(_.bits.redirect.nonEmpty).map(x => x.bits.predecodeInfo.get).toSeq
   )
 
-  private val exuRedirects: IndexedSeq[ValidIO[Redirect]] = delayedNotFlushedWriteBack.filter(_.bits.redirect.nonEmpty).map(x => {
+  private val exuRedirects: Seq[ValidIO[Redirect]] = delayedNotFlushedWriteBack.filter(_.bits.redirect.nonEmpty).map(x => {
     val out = Wire(Valid(new Redirect()))
     out.valid := x.valid && x.bits.redirect.get.valid && x.bits.redirect.get.bits.cfiUpdate.isMisPred
     out.bits := x.bits.redirect.get.bits
     out
-  })
+  }).toSeq
 
   private val memViolation = io.fromMem.violation
   val loadReplay = Wire(ValidIO(new Redirect))

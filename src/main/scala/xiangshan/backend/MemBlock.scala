@@ -16,7 +16,7 @@
 
 package xiangshan.backend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import coupledL2.PrefetchRecv
@@ -88,8 +88,6 @@ class MemBlockImp(outer: MemBlock) extends LazyModuleImp(outer)
     val vlsu2vec = new VLSU2VecIO
     val vlsu2int = new VLSU2IntIO
     val vlsu2ctrl = new VLSU2CtrlIO
-    // prefetch to l1 req
-    val prefetch_req = Flipped(DecoupledIO(new L1PrefetchReq))
     // misc
     val stIn = Vec(StaCnt, ValidIO(new MemExuInput))
     val memoryViolation = ValidIO(new Redirect)
@@ -124,7 +122,7 @@ class MemBlockImp(outer: MemBlock) extends LazyModuleImp(outer)
 
   val redirect = RegNextWithEnable(io.redirect)
 
-  val dcache = outer.dcache.module
+  private val dcache = outer.dcache.module
   val uncache = outer.uncache.module
 
   val delayedDcacheRefill = RegNext(dcache.io.lsu.lsq)
@@ -511,7 +509,7 @@ class MemBlockImp(outer: MemBlock) extends LazyModuleImp(outer)
     // -------------------------
     // Store Triggers
     // -------------------------
-    when(stOut(i).fire()){
+    when(stOut(i).fire){
       val hit = Wire(Vec(3, Bool()))
       for (j <- 0 until 3) {
          hit(j) := !tdata(sTriggerMapping(j)).select && TriggerCmp(

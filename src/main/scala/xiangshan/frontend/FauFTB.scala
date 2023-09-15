@@ -16,13 +16,12 @@
 
 package xiangshan.frontend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import utils._
 import utility._
 import xiangshan._
-import chisel3.experimental.chiselName
 import scala.{Tuple2 => &}
 
 trait FauFTBParams extends HasXSParameter with HasBPUConst {

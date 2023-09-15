@@ -16,7 +16,7 @@
 
 package xiangshan.cache
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import xiangshan._
@@ -128,7 +128,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     // MSHR ID
     val id = Input(UInt(log2Up(cfg.nMissEntries).W))
     // client requests
-    // MSHR update request, MSHR state and addr will be updated when req.fire()
+    // MSHR update request, MSHR state and addr will be updated when req.fire
     val req = Flipped(ValidIO(new MissReqWoStoreData))
     // store data and mask will be write to miss queue entry 1 cycle after req.fire()
     val req_data = Input(new MissReqStoreData)
@@ -301,7 +301,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     }
   }
 
-  when (io.mem_acquire.fire()) {
+  when (io.mem_acquire.fire) {
     s_acquire := true.B
   }
 
@@ -330,7 +330,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
 
   val hasData = RegInit(true.B)
   val isDirty = RegInit(false.B)
-  when (io.mem_grant.fire()) {
+  when (io.mem_grant.fire) {
     w_grantfirst := true.B
     grant_param := io.mem_grant.bits.param
     when (edge.hasData(io.mem_grant.bits)) {
@@ -358,11 +358,11 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     isDirty := io.mem_grant.bits.echo.lift(DirtyKey).getOrElse(false.B)
   }
 
-  when (io.mem_finish.fire()) {
+  when (io.mem_finish.fire) {
     s_grantack := true.B
   }
 
-  when (io.replace_pipe_req.fire()) {
+  when (io.replace_pipe_req.fire) {
     s_replace_req := true.B
   }
 
@@ -370,7 +370,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     w_replace_resp := true.B
   }
 
-  when (io.refill_pipe_req.fire()) {
+  when (io.refill_pipe_req.fire) {
     s_refill := true.B
   }
 
@@ -378,7 +378,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     w_refill_resp := true.B
   }
 
-  when (io.main_pipe_req.fire()) {
+  when (io.main_pipe_req.fire) {
     s_mainpipe_req := true.B
   }
 
@@ -405,9 +405,9 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     )
   }
 
-  // store can be merged before io.mem_acquire.fire()
-  // store can not be merged the cycle that io.mem_acquire.fire()
-  // load can be merged before io.mem_grant.fire()
+  // store can be merged before io.mem_acquire.fire
+  // store can not be merged the cycle that io.mem_acquire.fire
+  // load can be merged before io.mem_grant.fire
   //
   // TODO: merge store if possible? mem_acquire may need to be re-issued,
   // but sbuffer entry can be freed
@@ -437,11 +437,11 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     data((i + 1) * l1BusDataWidth - 1, i * l1BusDataWidth)
   })))
   // when granted data is all ready, wakeup lq's miss load
-  io.refill_to_ldq.valid := RegNext(!w_grantlast && io.mem_grant.fire()) && should_refill_data_reg
+  io.refill_to_ldq.valid := RegNext(!w_grantlast && io.mem_grant.fire) && should_refill_data_reg
   io.refill_to_ldq.bits.addr := RegNext(req.addr + (refill_count << refillOffBits))
   io.refill_to_ldq.bits.data := refill_data_splited(RegNext(refill_count))
   io.refill_to_ldq.bits.error := RegNext(io.mem_grant.bits.corrupt || io.mem_grant.bits.denied)
-  io.refill_to_ldq.bits.refill_done := RegNext(refill_done && io.mem_grant.fire())
+  io.refill_to_ldq.bits.refill_done := RegNext(refill_done && io.mem_grant.fire)
   io.refill_to_ldq.bits.hasdata := hasData
   io.refill_to_ldq.bits.data_raw := refill_data_raw.asUInt
   io.refill_to_ldq.bits.id := io.id
@@ -469,8 +469,8 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
 
   io.mem_grant.ready := !w_grantlast && s_acquire
 
-  val grantack = RegEnable(edge.GrantAck(io.mem_grant.bits), io.mem_grant.fire())
-  assert(RegNext(!io.mem_grant.fire() || edge.isRequest(io.mem_grant.bits)))
+  val grantack = RegEnable(edge.GrantAck(io.mem_grant.bits), io.mem_grant.fire)
+  assert(RegNext(!io.mem_grant.fire || edge.isRequest(io.mem_grant.bits)))
   io.mem_finish.valid := !s_grantack && w_grantfirst
   io.mem_finish.bits := grantack
 
@@ -545,7 +545,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
   io.block_addr.valid := req_valid && w_grantlast && !w_refill_resp
   io.block_addr.bits := req.addr
 
-  io.debug_early_replace.valid := BoolStopWatch(io.replace_pipe_resp, io.refill_pipe_req.fire())
+  io.debug_early_replace.valid := BoolStopWatch(io.replace_pipe_resp, io.refill_pipe_req.fire)
   io.debug_early_replace.bits.idx := addr_to_dcache_set(req.vaddr)
   io.debug_early_replace.bits.tag := req.replace_tag
 
@@ -557,7 +557,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     should_refill_data &&
       BoolStopWatch(primary_fire, io.refill_to_ldq.valid, true)
   )
-  XSPerfAccumulate("main_pipe_penalty", BoolStopWatch(io.main_pipe_req.fire(), io.main_pipe_resp))
+  XSPerfAccumulate("main_pipe_penalty", BoolStopWatch(io.main_pipe_req.fire, io.main_pipe_resp))
   XSPerfAccumulate("penalty_blocked_by_channel_A", io.mem_acquire.valid && !io.mem_acquire.ready)
   XSPerfAccumulate("penalty_waiting_for_channel_D", s_acquire && !w_grantlast && !io.mem_grant.valid)
   XSPerfAccumulate("penalty_waiting_for_channel_E", io.mem_finish.valid && !io.mem_finish.ready)
@@ -575,7 +575,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
   XSPerfHistogram("load_miss_penalty_to_use", load_miss_penalty, load_miss_penalty_sample, 0, 20, 1, true, true)
   XSPerfHistogram("load_miss_penalty_to_use", load_miss_penalty, load_miss_penalty_sample, 20, 100, 10, true, false)
 
-  val (a_to_d_penalty_sample, a_to_d_penalty) = TransactionLatencyCounter(io.mem_acquire.fire(), io.mem_grant.fire() && refill_done)
+  val (a_to_d_penalty_sample, a_to_d_penalty) = TransactionLatencyCounter(io.mem_acquire.fire, io.mem_grant.fire && refill_done)
   XSPerfHistogram("a_to_d_penalty", a_to_d_penalty, a_to_d_penalty_sample, 0, 20, 1, true, true)
   XSPerfHistogram("a_to_d_penalty", a_to_d_penalty, a_to_d_penalty_sample, 20, 100, 10, true, false)
 }
@@ -761,13 +761,13 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
   }
 
   // Perf count
-  XSPerfAccumulate("miss_req", io.req.fire())
-  XSPerfAccumulate("miss_req_allocate", io.req.fire() && alloc)
-  XSPerfAccumulate("miss_req_merge_load", io.req.fire() && merge && io.req.bits.isFromLoad)
+  XSPerfAccumulate("miss_req", io.req.fire)
+  XSPerfAccumulate("miss_req_allocate", io.req.fire && alloc)
+  XSPerfAccumulate("miss_req_merge_load", io.req.fire && merge && io.req.bits.isFromLoad)
   XSPerfAccumulate("miss_req_reject_load", io.req.valid && reject && io.req.bits.isFromLoad)
   XSPerfAccumulate("probe_blocked_by_miss", io.probe_block)
-  XSPerfAccumulate("prefetch_primary_fire", io.req.fire() && alloc && io.req.bits.isFromPrefetch)
-  XSPerfAccumulate("prefetch_secondary_fire", io.req.fire() && merge && io.req.bits.isFromPrefetch)
+  XSPerfAccumulate("prefetch_primary_fire", io.req.fire && alloc && io.req.bits.isFromPrefetch)
+  XSPerfAccumulate("prefetch_secondary_fire", io.req.fire && merge && io.req.bits.isFromPrefetch)
   val max_inflight = RegInit(0.U((log2Up(cfg.nMissEntries) + 1).W))
   val num_valids = PopCount(~Cat(primary_ready_vec).asUInt)
   when (num_valids > max_inflight) {
@@ -781,7 +781,7 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
 
   val perfValidCount = RegNext(PopCount(entries.map(entry => (!entry.io.primary_ready))))
   val perfEvents = Seq(
-    ("dcache_missq_req      ", io.req.fire()),
+    ("dcache_missq_req      ", io.req.fire),
     ("dcache_missq_1_4_valid", (perfValidCount < (cfg.nMissEntries.U/4.U))),
     ("dcache_missq_2_4_valid", (perfValidCount > (cfg.nMissEntries.U/4.U)) & (perfValidCount <= (cfg.nMissEntries.U/2.U))),
     ("dcache_missq_3_4_valid", (perfValidCount > (cfg.nMissEntries.U/2.U)) & (perfValidCount <= (cfg.nMissEntries.U*3.U/4.U))),

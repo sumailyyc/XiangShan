@@ -1,6 +1,6 @@
 package xiangshan.backend
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
@@ -277,7 +277,7 @@ class BackendImp(override val wrapper: Backend)(implicit p: Parameters) extends 
   }
 
   pcTargetMem.io.fromFrontendFtq := io.frontend.fromFtq
-  pcTargetMem.io.fromDataPathFtq := bypassNetwork.io.toExus.int.flatten.filter(_.bits.params.hasPredecode).map(_.bits.ftqIdx.get)
+  pcTargetMem.io.fromDataPathFtq := bypassNetwork.io.toExus.int.flatten.filter(_.bits.params.hasPredecode).map(_.bits.ftqIdx.get).toSeq
   intExuBlock.io.in.flatten.filter(_.bits.params.hasPredecode).map(_.bits.predictInfo.get.target).zipWithIndex.foreach {
     case (sink, i) =>
       sink := pcTargetMem.io.toExus(i)
@@ -431,13 +431,13 @@ class BackendImp(override val wrapper: Backend)(implicit p: Parameters) extends 
   io.mem.lsqEnqIO <> memScheduler.io.memIO.get.lsqEnqIO
   io.mem.robLsqIO <> ctrlBlock.io.robio.lsq
 
-  private val intFinalIssueBlock = intExuBlock.io.in.flatten.map(_ => false.B)
-  private val vfFinalIssueBlock = vfExuBlock.io.in.flatten.map(_ => false.B)
-  private val memFinalIssueBlock = io.mem.issueUops zip memExuBlocksHasLDU.flatten map {
+  private val intFinalIssueBlock = intExuBlock.io.in.flatten.map(_ => false.B).toSeq
+  private val vfFinalIssueBlock = vfExuBlock.io.in.flatten.map(_ => false.B).toSeq
+  private val memFinalIssueBlock = (io.mem.issueUops zip memExuBlocksHasLDU.flatten map {
     case (out, isLdu) =>
       if (isLdu) RegNext(out.valid && !out.ready, false.B)
       else false.B
-  }
+  }).toSeq
   og0CancelVecFromFinalIssue := intFinalIssueBlock ++ vfFinalIssueBlock ++ memFinalIssueBlock
 
   io.frontendSfence := fenceio.sfence

@@ -16,7 +16,7 @@
 
 package xiangshan.backend.rob
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import difftest._
@@ -340,8 +340,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     val wfi_enable = Input(Bool())
   })
 
-  val exuWBs: Seq[ValidIO[ExuOutput]] = io.writeback.filter(!_.bits.params.hasStdFu)
-  val stdWBs: Seq[ValidIO[ExuOutput]] = io.writeback.filter(_.bits.params.hasStdFu)
+  val exuWBs: Seq[ValidIO[ExuOutput]] = io.writeback.filter(!_.bits.params.hasStdFu).toSeq
+  val stdWBs: Seq[ValidIO[ExuOutput]] = io.writeback.filter(_.bits.params.hasStdFu).toSeq
   val fflagsWBs = io.writeback.filter(x => x.bits.fflags.nonEmpty)
   val exceptionWBs = io.writeback.filter(x => x.bits.exceptionVec.nonEmpty)
   val redirectWBs = io.writeback.filter(x => x.bits.redirect.nonEmpty)
@@ -703,7 +703,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   // TODO: don't check all exu write back
   val misPredWb = Cat(VecInit(redirectWBs.map(wb =>
     wb.bits.redirect.get.bits.cfiUpdate.isMisPred && wb.bits.redirect.get.valid && wb.valid
-  ))).orR
+  ).toSeq)).orR
   val misPredBlockCounter = Reg(UInt(3.W))
   misPredBlockCounter := Mux(misPredWb,
     "b111".U,
@@ -729,8 +729,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     io.commits.commitValid(i) := commit_v(i) && commit_w(i) && !isBlocked
     io.commits.info(i)  := dispatchDataRead(i)
 
+    io.commits.walkValid(i) := shouldWalkVec(i)
     when (state === s_walk) {
-      io.commits.walkValid(i) := shouldWalkVec(i)
       when (io.commits.isWalk && state === s_walk && shouldWalkVec(i)) {
         XSError(!walk_v(i), s"why not $i???\n")
       }

@@ -1,6 +1,6 @@
 package xiangshan.backend.datapath
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import difftest._
@@ -40,13 +40,13 @@ class WbArbiterIO()(implicit p: Parameters, params: WbArbiterParams) extends XSB
   val in: MixedVec[DecoupledIO[WriteBackBundle]] = Flipped(params.genInput)
   val out: MixedVec[ValidIO[WriteBackBundle]] = params.genOutput
 
-  def inGroup: Map[Int, IndexedSeq[DecoupledIO[WriteBackBundle]]] = in.groupBy(_.bits.params.port)
+  def inGroup = in.groupBy(_.bits.params.port)
 }
 
 class WbArbiter(params: WbArbiterParams)(implicit p: Parameters) extends XSModule {
   val io = IO(new WbArbiterIO()(p, params))
   // Todo: Sorted by priority
-  private val inGroup: Map[Int, IndexedSeq[DecoupledIO[WriteBackBundle]]] = io.inGroup
+  private val inGroup = io.inGroup
 
   private val arbiters: Seq[Option[Arbiter[WriteBackBundle]]] = Seq.tabulate(params.numOut) { x => {
     if (inGroup.contains(x)) {
@@ -108,7 +108,7 @@ class WbDataPath(params: BackendParams)(implicit p: Parameters) extends XSModule
   val io = IO(new WbDataPathIO()(p, params))
 
   // alias
-  val fromExu = (io.fromIntExu ++ io.fromVfExu ++ io.fromMemExu).flatten
+  val fromExu = (io.fromIntExu ++ io.fromVfExu ++ io.fromMemExu).flatten.toSeq
   val intArbiterInputsWire = WireInit(MixedVecInit(fromExu))
   val intArbiterInputsWireY = intArbiterInputsWire.filter(_.bits.params.writeIntRf)
   val intArbiterInputsWireN = intArbiterInputsWire.filterNot(_.bits.params.writeIntRf)
@@ -176,12 +176,12 @@ class WbDataPath(params: BackendParams)(implicit p: Parameters) extends XSModule
 
   private val vfWbArbiterOut = vfWbArbiter.io.out
 
-  private val intExuInputs = io.fromIntExu.flatten
-  private val intExuWBs = WireInit(MixedVecInit(io.fromIntExu.flatten))
-  private val vfExuInputs = io.fromVfExu.flatten
-  private val vfExuWBs = WireInit(MixedVecInit(io.fromVfExu.flatten))
-  private val memExuInputs = io.fromMemExu.flatten
-  private val memExuWBs = WireInit(MixedVecInit(io.fromMemExu.flatten))
+  private val intExuInputs = io.fromIntExu.flatten.toSeq
+  private val intExuWBs = WireInit(MixedVecInit(intExuInputs))
+  private val vfExuInputs = io.fromVfExu.flatten.toSeq
+  private val vfExuWBs = WireInit(MixedVecInit(vfExuInputs))
+  private val memExuInputs = io.fromMemExu.flatten.toSeq
+  private val memExuWBs = WireInit(MixedVecInit(memExuInputs))
 
   // only fired port can write back to ctrl block
   (intExuWBs zip intExuInputs).foreach { case (wb, input) => wb.valid := input.fire }
@@ -194,8 +194,8 @@ class WbDataPath(params: BackendParams)(implicit p: Parameters) extends XSModule
   )
 
   // io assign
-  private val toIntPreg: MixedVec[RfWritePortWithConfig] = MixedVecInit(intWbArbiterOut.map(x => x.bits.asIntRfWriteBundle(x.fire)))
-  private val toVfPreg: MixedVec[RfWritePortWithConfig] = MixedVecInit(vfWbArbiterOut.map(x => x.bits.asVfRfWriteBundle(x.fire)))
+  private val toIntPreg: MixedVec[RfWritePortWithConfig] = MixedVecInit(intWbArbiterOut.map(x => x.bits.asIntRfWriteBundle(x.fire)).toSeq)
+  private val toVfPreg: MixedVec[RfWritePortWithConfig] = MixedVecInit(vfWbArbiterOut.map(x => x.bits.asVfRfWriteBundle(x.fire)).toSeq)
 
   private val wb2Ctrl = intExuWBs ++ vfExuWBs ++ memExuWBs
 

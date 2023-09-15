@@ -16,17 +16,16 @@
 
 package top
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import device.{AXI4MemorySlave, SimJTAG}
 import difftest._
 import freechips.rocketchip.diplomacy.{DisableMonitors, LazyModule}
-import utility.FileRegisters
-import utility.ChiselDB
-import utility.GTimer
-import xiangshan.DebugOptionsKey
-import utility.Constantin
+import utility.{ChiselDB, Constantin, FileRegisters, GTimer}
+import xiangshan.{DebugOptionsKey, XSCoreParamsKey, XSModule, XSTileKey}
+import xiangshan.mem.LqPtr
+import system.SoCParamsKey
 
 class SimTop(implicit p: Parameters) extends Module {
   val debugOpts = p(DebugOptionsKey)
@@ -101,27 +100,25 @@ class SimTop(implicit p: Parameters) extends Module {
 }
 
 object SimTop extends App {
-  override def main(args: Array[String]): Unit = {
-    // Keep this the same as TopMain except that SimTop is used here instead of XSTop
-    val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
+  // Keep this the same as TopMain except that SimTop is used here instead of XSTop
+  val (config, firrtlOpts, firrtlComplier, firtoolOpts) = ArgParser.parse(args)
 
-    // tools: init to close dpi-c when in fpga
-    val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-    val enableConstantin = config(DebugOptionsKey).EnableConstantin
-    Constantin.init(enableConstantin && !envInFPGA)
-    ChiselDB.init(envInFPGA)
+  // tools: init to close dpi-c when in fpga
+  val envInFPGA = config(DebugOptionsKey).FPGAPlatform
+  val enableConstantin = config(DebugOptionsKey).EnableConstantin
+  Constantin.init(enableConstantin && !envInFPGA)
+  ChiselDB.init(envInFPGA)
 
-    Generator.execute(
-      firrtlOpts,
-      DisableMonitors(p => new SimTop()(p))(config),
-      firrtlComplier,
-      firtoolOpts
-    )
+  Generator.execute(
+    firrtlOpts,
+    DisableMonitors(p => new SimTop()(p))(config),
+    firrtlComplier,
+    firtoolOpts
+  )
 
-    // tools: write cpp files
-    ChiselDB.addToFileRegisters
-    Constantin.addToFileRegisters
-    FileRegisters.write(fileDir = "./build")
-    DifftestModule.finish("XiangShan")
-  }
+  // tools: write cpp files
+  ChiselDB.addToFileRegisters
+  Constantin.addToFileRegisters
+  FileRegisters.write(fileDir = "./build")
+  DifftestModule.finish("XiangShan")
 }

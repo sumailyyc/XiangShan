@@ -16,7 +16,7 @@
 
 package xiangshan.frontend.icache
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import difftest._
@@ -509,12 +509,12 @@ class IPrefetchPipe(implicit p: Parameters) extends  IPrefetchModule
   /** Prefetch Stage 0: req from Ftq */
   val p0_valid  =   fromFtq.req.valid
   val p0_vaddr  =   addrAlign(fromFtq.req.bits.target, blockBytes, VAddrBits)
-  val p0_vaddr_reg = RegEnable(p0_vaddr, fromFtq.req.fire())
+  val p0_vaddr_reg = RegEnable(p0_vaddr, fromFtq.req.fire)
 
   /* Cancel request when prefetch not enable
    * or the request from FTQ is same as last time */
   val p0_req_cancel = !enableBit || (p0_vaddr === p0_vaddr_reg) || io.fencei
-  p0_fire   :=   p0_valid && p1_ready && toITLB.fire() && !fromITLB.bits.miss && toIMeta.ready && enableBit && !p0_req_cancel
+  p0_fire   :=   p0_valid && p1_ready && toITLB.fire && !fromITLB.bits.miss && toIMeta.ready && enableBit && !p0_req_cancel
   p0_discard := p0_valid && p0_req_cancel
 
   toIMeta.valid     := p0_valid && !p0_discard
@@ -631,7 +631,7 @@ class IPrefetchPipe(implicit p: Parameters) extends  IPrefetchModule
     maxPrefetchCounter := 0.U
 
     prefetch_dir.foreach(_.valid := false.B)
-  }.elsewhen(toMissUnit.enqReq.fire()){
+  }.elsewhen(toMissUnit.enqReq.fire){
 //    when(reachMaxSize){
 //      prefetch_dir(io.freePIQEntry).paddr := p3_paddr
 //    }.otherwise {
@@ -646,7 +646,7 @@ class IPrefetchPipe(implicit p: Parameters) extends  IPrefetchModule
   }
 
   p3_ready := toMissUnit.enqReq.ready || !enableBit
-  p3_fire  := toMissUnit.enqReq.fire()
+  p3_fire  := toMissUnit.enqReq.fire
 
 }
 
@@ -707,7 +707,7 @@ class PIQEntry(edge: TLEdgeOut, id: Int)(implicit p: Parameters) extends IPrefet
   //state change
   switch(state){
     is(s_idle){
-      when(io.req.fire()){
+      when(io.req.fire){
         readBeatCnt := 0.U
         state := s_memReadReq
         req := io.req.bits
@@ -716,14 +716,14 @@ class PIQEntry(edge: TLEdgeOut, id: Int)(implicit p: Parameters) extends IPrefet
 
     // memory request
     is(s_memReadReq){
-      when(io.mem_acquire.fire()){
+      when(io.mem_acquire.fire){
         state := s_memReadResp
       }
     }
 
     is(s_memReadResp){
       when (edge.hasData(io.mem_grant.bits)) {
-        when (io.mem_grant.fire()) {
+        when (io.mem_grant.fire) {
           readBeatCnt := readBeatCnt + 1.U
           respDataReg(readBeatCnt) := io.mem_grant.bits.data
           when (readBeatCnt === (refillCycles - 1).U) {
@@ -735,7 +735,7 @@ class PIQEntry(edge: TLEdgeOut, id: Int)(implicit p: Parameters) extends IPrefet
     }
 
     is(s_write_back){
-      state := Mux(io.piq_write_ipbuffer.fire() || needflush, s_finish, s_write_back)
+      state := Mux(io.piq_write_ipbuffer.fire || needflush, s_finish, s_write_back)
     }
 
     is(s_finish){
@@ -755,7 +755,7 @@ class PIQEntry(edge: TLEdgeOut, id: Int)(implicit p: Parameters) extends IPrefet
   io.ongoing_req.valid := state =/= s_idle
   io.ongoing_req.bits := addrAlign(req.paddr, blockBytes, PAddrBits)
 
-  XSPerfAccumulate("PrefetchEntryReq" + Integer.toString(id, 10), io.req.fire())
+  XSPerfAccumulate("PrefetchEntryReq" + Integer.toString(id, 10), io.req.fire)
 
   //mem request
   io.mem_acquire.bits  := edge.Get(

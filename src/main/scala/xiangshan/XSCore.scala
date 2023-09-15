@@ -16,8 +16,8 @@
 
 package xiangshan
 
-import chipsalliance.rocketchip.config
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{BundleBridgeSource, LazyModule, LazyModuleImp}
@@ -42,9 +42,9 @@ abstract class XSModule(implicit val p: Parameters) extends Module
 //remove this trait after impl module logic
 trait NeedImpl {
   this: RawModule =>
-  override protected def IO[T <: Data](iodef: T): T = {
+  protected def IO[T <: Data](iodef: T): T = {
     println(s"[Warn]: (${this.name}) please reomve 'NeedImpl' after implement this module")
-    val io = chisel3.experimental.IO(iodef)
+    val io = chisel3.IO(iodef)
     io <> DontCare
     io
   }
@@ -97,8 +97,8 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   val frontend = outer.frontend.module
   val backend = outer.backend.module
   val memBlock = outer.memBlock.module
-  val ptw = outer.ptw.module
-  val ptw_to_l2_buffer = if (!coreParams.softPTW) outer.ptw_to_l2_buffer.module else null
+  private val ptw = outer.ptw.module
+  private val ptw_to_l2_buffer = if (!coreParams.softPTW) outer.ptw_to_l2_buffer.module else null
 
   val fenceio = backend.io.fenceio
   fenceio.disableSfence := DontCare
@@ -151,6 +151,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
 
   io.beu_errors.icache <> frontend.io.error.toL1BusErrorUnitInfo()
   io.beu_errors.dcache <> memBlock.io.error.toL1BusErrorUnitInfo()
+  io.beu_errors.l2 <> DontCare
 
   memBlock.io.hartId := io.hartId
   memBlock.io.issue.zipAll(backend.io.mem.issueUops, DontCare, DontCare).foreach { case(memIssue, backIssue) =>

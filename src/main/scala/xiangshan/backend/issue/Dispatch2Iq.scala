@@ -1,6 +1,6 @@
 package xiangshan.backend.issue
 
-import chipsalliance.rocketchip.config.Parameters
+import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy.{LazyModule, LazyModuleImp}
@@ -39,7 +39,7 @@ class Dispatch2Iq(val schdBlockParams : SchdBlockParams)(implicit p: Parameters)
 
   val isMem = schdBlockParams.schdType == MemScheduler()
 
-  lazy val module = schdBlockParams.schdType match {
+  lazy val module: Dispatch2IqImp = schdBlockParams.schdType match {
     case IntScheduler() => new Dispatch2IqArithImp(this)(p, schdBlockParams)
     case MemScheduler() => new Dispatch2IqMemImp(this)(p, schdBlockParams)
     case VfScheduler() => new Dispatch2IqArithImp(this)(p, schdBlockParams)
@@ -125,15 +125,15 @@ abstract class Dispatch2IqImp(override val wrapper: Dispatch2Iq)(implicit p: Par
   }
 
   def canAccept(acceptVec: Seq[Seq[Int]], fuType: UInt): Vec[Bool] = {
-    VecInit(acceptVec.map(x => canAccept(x, fuType)))
+    VecInit(acceptVec.map(x => canAccept(x, fuType)).toSeq)
   }
 
   def filterCanAccept(fuConfigs: Seq[FuConfig], fuType: UInt, canAcceptAlu: Boolean): Bool = {
     if(canAcceptAlu) {
-      Cat(fuConfigs.map(_.fuType.U === fuType)).orR
+      Cat(fuConfigs.map(_.fuType.U === fuType).toSeq).orR
     }
     else{
-      Mux(fuType === FuType.alu.U, false.B, Cat(fuConfigs.map(_.fuType.U === fuType)).orR)
+      Mux(fuType === FuType.alu.U, false.B, Cat(fuConfigs.map(_.fuType.U === fuType).toSeq).orR)
     }
   }
 }
@@ -168,7 +168,7 @@ class Dispatch2IqArithImp(override val wrapper: Dispatch2Iq)(implicit p: Paramet
   finalFuDeqMap.zipWithIndex.foreach { case ((fuTypeSeq, deqPortIdSeq), i) =>
     val maxSelNum = wrapper.numIn
     val selNum = deqPortIdSeq.length
-    val portReadyVec = deqPortIdSeq.map(x => outs(x).ready)
+    val portReadyVec = deqPortIdSeq.map(x => outs(x).ready).toSeq
     val canAcc = uopsIn.map(in => canAccept(fuTypeSeq, in.bits.fuType) && in.valid)
     if(selNum <= maxSelNum) {
       val selPort = SelectOne("circ", portReadyVec, selNum)
@@ -200,7 +200,7 @@ class Dispatch2IqArithImp(override val wrapper: Dispatch2Iq)(implicit p: Paramet
   val finalportSelIdxOH: mutable.Map[Int, Seq[ValidIO[UInt]]] = expendPortSel(portSelIdxOH)
   println(s"finalportSelIdxOH: $finalportSelIdxOH")
   finalportSelIdxOH.foreach{ case (portId, selSeq) =>
-    val finalSelIdxOH: UInt = PriorityMux(selSeq.map(_.valid), selSeq.map(_.bits))
+    val finalSelIdxOH: UInt = PriorityMux(selSeq.map(_.valid).toSeq, selSeq.map(_.bits).toSeq)
     outs(portId).valid := selSeq.map(_.valid).reduce(_ | _)
     outs(portId).bits := Mux1H(finalSelIdxOH, uopsIn.map(_.bits))
     when(outs(portId).valid) {
@@ -248,7 +248,7 @@ class Dispatch2IqArithImp(override val wrapper: Dispatch2Iq)(implicit p: Paramet
   uopsIn
     .flatMap(x => x.bits.srcState.take(numRegSrc) zip x.bits.srcType.take(numRegSrc))
     .zip(
-      intSrcStateVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(SrcState.busy))) zip vfSrcStateVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(SrcState.busy)))
+      intSrcStateVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(SrcState.busy)) zip vfSrcStateVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(SrcState.busy))
     )
     .foreach {
       case ((state: UInt, srcType), (intState, vfState)) =>
@@ -261,7 +261,7 @@ class Dispatch2IqArithImp(override val wrapper: Dispatch2Iq)(implicit p: Paramet
   uopsIn
     .flatMap(x => x.bits.dataSource.take(numRegSrc) zip x.bits.srcType.take(numRegSrc))
     .zip(
-      intDataSourceVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(0.U.asTypeOf(DataSource())))) zip vfDataSourceVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(0.U.asTypeOf(DataSource()))))
+      intDataSourceVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(0.U.asTypeOf(DataSource()))) zip vfDataSourceVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(0.U.asTypeOf(DataSource())))
     )
     .foreach {
       case ((dataSource, srcType), (intSource, vfSource)) =>
@@ -274,7 +274,7 @@ class Dispatch2IqArithImp(override val wrapper: Dispatch2Iq)(implicit p: Paramet
   uopsIn
     .flatMap(x => x.bits.l1ExuOH.take(numRegSrc) zip x.bits.srcType.take(numRegSrc))
     .zip(
-      intL1ExuOHVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(0.U.asTypeOf(ExuVec())))) zip vfL1ExuOHVec.getOrElse(VecInit(Seq.fill(numEnq * numRegSrc)(0.U.asTypeOf(ExuVec()))))
+      intL1ExuOHVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(0.U.asTypeOf(ExuVec()))) zip vfL1ExuOHVec.getOrElse(VecInit.fill(numEnq * numRegSrc)(0.U.asTypeOf(ExuVec())))
     )
     .foreach {
       case ((l1ExuOH: Vec[Bool], srcType), (intL1ExuOH, vfL1ExuOH)) =>
@@ -301,8 +301,8 @@ class Dispatch2IqSelect(numIn: Int, dispatchCfg: Seq[(Seq[Int], Int)])(implicit 
 
   val io = IO(new Bundle {
     val in = Flipped(Vec(numIn, ValidIO(new DynInst)))
-    val out = MixedVec(dispatchCfg.map(x => Vec(x._2, ValidIO(new DynInst))))
-    val mapIdxOH = Output(MixedVec(dispatchCfg.map(x => Vec(x._2, UInt(in.size.W))))) // OH mapping of in ports to out ports
+    val out = MixedVec(dispatchCfg.map(x => Vec(x._2, ValidIO(new DynInst))).toSeq)
+    val mapIdxOH = Output(MixedVec(dispatchCfg.map(x => Vec(x._2, UInt(in.size.W))).toSeq)) // OH mapping of in ports to out ports
   })
 
   val issuePortFuType: Seq[Seq[Int]] = dispatchCfg.map(_._1)
@@ -334,7 +334,7 @@ class Dispatch2IqSelect(numIn: Int, dispatchCfg: Seq[(Seq[Int], Int)])(implicit 
   }
 
   def canAccept(acceptVec: Seq[Seq[Int]], fuType: UInt): Vec[Bool] = {
-    VecInit(acceptVec.map(x => canAccept(x, fuType)))
+    VecInit(acceptVec.map(x => canAccept(x, fuType)).toSeq)
   }
 }
 
@@ -370,7 +370,7 @@ class Dispatch2IqMemImp(override val wrapper: Dispatch2Iq)(implicit p: Parameter
   private val s0_out = Wire(io.out.cloneType)
   private val s0_blockedVec = Wire(Vec(io.in.size, Bool()))
 
-  val iqNotAllReady = !Cat(s0_out.map(_.map(_.ready)).flatten).andR
+  val iqNotAllReady = !Cat(s0_out.map(_.map(_.ready)).flatten.toSeq).andR
   val lsqCannotAccept = !enqLsqIO.canAccept
 
   private val isLoadVec = VecInit(io.in.map(x => x.valid && FuType.isLoad(x.bits.fuType)))
@@ -490,8 +490,8 @@ class Dispatch2IqMemImp(override val wrapper: Dispatch2Iq)(implicit p: Parameter
   }
 
   // outToInMap(inIdx)(outIdx): the inst numbered inIdx will be accepted by port numbered outIdx
-  val outToInMap: Vec[Vec[Bool]] = VecInit(selectIdxOH.flatten.map(x => x.asBools).transpose.map(x => VecInit(x)))
-  val outReadyVec: Vec[Bool] = VecInit(s0_out.map(_.map(_.ready)).flatten)
+  val outToInMap: Vec[Vec[Bool]] = VecInit(selectIdxOH.flatten.map(x => x.asBools).transpose.map(x => VecInit(x.toSeq)).toSeq)
+  val outReadyVec: Vec[Bool] = VecInit(s0_out.map(_.map(_.ready)).flatten.toSeq)
   s0_in.zipWithIndex.zip(outToInMap).foreach { case ((in, inIdx), outVec) =>
     when (iqNotAllReady || lsqCannotAccept) {
       in.ready := false.B
