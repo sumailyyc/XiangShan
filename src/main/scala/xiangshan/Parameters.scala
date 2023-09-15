@@ -183,6 +183,11 @@ case class XSCoreParameters
   EnableCacheErrorAfterReset: Boolean = true,
   EnableAccurateLoadError: Boolean = true,
   EnableUncacheWriteOutstanding: Boolean = false,
+  EnableStorePrefetchAtIssue: Boolean = false,
+  EnableStorePrefetchAtCommit: Boolean = false,
+  EnableAtCommitMissTrigger: Boolean = true,
+  EnableStorePrefetchSMS: Boolean = false,
+  EnableStorePrefetchSPB: Boolean = false,
   MMUAsidLen: Int = 16, // max is 16, 0 is not supported now
   ReSelectLen: Int = 7, // load replay queue replay select counter len
   iwpuParameters: WPUParameters = WPUParameters(
@@ -200,21 +205,13 @@ case class XSCoreParameters
     name = "itlb",
     fetchi = true,
     useDmode = false,
-    normalNWays = 32,
-    normalReplacer = Some("plru"),
-    superNWays = 4,
-    superReplacer = Some("plru")
+    NWays = 48,
   ),
   itlbPortNum: Int = 2 + ICacheParameters().prefetchPipeNum + 1,
   ipmpPortNum: Int = 2 + ICacheParameters().prefetchPipeNum + 1,
   ldtlbParameters: TLBParameters = TLBParameters(
     name = "ldtlb",
-    normalNSets = 64,
-    normalNWays = 1,
-    normalAssociative = "sa",
-    normalReplacer = Some("setplru"),
-    superNWays = 16,
-    normalAsVictim = true,
+    NWays = 48,
     outReplace = false,
     partialStaticPMP = true,
     outsideRecvFlush = true,
@@ -222,12 +219,7 @@ case class XSCoreParameters
   ),
   sttlbParameters: TLBParameters = TLBParameters(
     name = "sttlb",
-    normalNSets = 64,
-    normalNWays = 1,
-    normalAssociative = "sa",
-    normalReplacer = Some("setplru"),
-    superNWays = 16,
-    normalAsVictim = true,
+    NWays = 48,
     outReplace = false,
     partialStaticPMP = true,
     outsideRecvFlush = true,
@@ -235,12 +227,7 @@ case class XSCoreParameters
   ),
   pftlbParameters: TLBParameters = TLBParameters(
     name = "pftlb",
-    normalNSets = 64,
-    normalNWays = 1,
-    normalAssociative = "sa",
-    normalReplacer = Some("setplru"),
-    superNWays = 16,
-    normalAsVictim = true,
+    NWays = 48,
     outReplace = false,
     partialStaticPMP = true,
     outsideRecvFlush = true,
@@ -249,9 +236,7 @@ case class XSCoreParameters
   refillBothTlb: Boolean = false,
   btlbParameters: TLBParameters = TLBParameters(
     name = "btlb",
-    normalNSets = 1,
-    normalNWays = 64,
-    superNWays = 4,
+    NWays = 48,
   ),
   l2tlbParameters: L2TLBParameters = L2TLBParameters(),
   NumPerfCounters: Int = 16,
@@ -262,7 +247,7 @@ case class XSCoreParameters
     nMissEntries = 2,
     nProbeEntries = 2,
     nPrefetchEntries = 12,
-    nPrefBufferEntries = 64,
+    nPrefBufferEntries = 32,
     hasPrefetch = true,
   ),
   dcacheParametersOpt: Option[DCacheParameters] = Some(DCacheParameters(
@@ -271,7 +256,8 @@ case class XSCoreParameters
     replacer = Some("setplru"),
     nMissEntries = 16,
     nProbeEntries = 8,
-    nReleaseEntries = 18
+    nReleaseEntries = 18,
+    nMaxPrefetchEntry = 6,
   )),
   L2CacheParamsOpt: Option[L2Param] = Some(L2Param(
     name = "l2",
@@ -314,6 +300,7 @@ case class DebugOptions
   EnableConstantin: Boolean = false,
   EnableChiselDB: Boolean = false,
   AlwaysBasicDB: Boolean = true,
+  EnableRollingDB: Boolean = false
 )
 
 trait HasXSParameter {
@@ -455,6 +442,11 @@ trait HasXSParameter {
   val EnableCacheErrorAfterReset = coreParams.EnableCacheErrorAfterReset
   val EnableAccurateLoadError = coreParams.EnableAccurateLoadError
   val EnableUncacheWriteOutstanding = coreParams.EnableUncacheWriteOutstanding
+  val EnableStorePrefetchAtIssue = coreParams.EnableStorePrefetchAtIssue
+  val EnableStorePrefetchAtCommit = coreParams.EnableStorePrefetchAtCommit
+  val EnableAtCommitMissTrigger = coreParams.EnableAtCommitMissTrigger
+  val EnableStorePrefetchSMS = coreParams.EnableStorePrefetchSMS
+  val EnableStorePrefetchSPB = coreParams.EnableStorePrefetchSPB
   val asidLen = coreParams.MMUAsidLen
   val BTLBWidth = coreParams.LoadPipelineWidth + coreParams.StorePipelineWidth
   val refillBothTlb = coreParams.refillBothTlb

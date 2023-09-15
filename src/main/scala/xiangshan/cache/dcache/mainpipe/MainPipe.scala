@@ -26,6 +26,7 @@ import freechips.rocketchip.tilelink.{ClientMetadata, ClientStates, TLPermission
 import utils._
 import utility._
 import xiangshan.{L1CacheErrorInfo, XSCoreParamsKey}
+import xiangshan.mem.HasL1PrefetchSourceParameter
 
 class MainPipeReq(implicit p: Parameters) extends DCacheBundle {
   val miss = Bool() // only amo miss will refill in main pipe
@@ -96,7 +97,7 @@ class MainPipeStatus(implicit p: Parameters) extends DCacheBundle {
   val way_en = UInt(nWays.W)
 }
 
-class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
+class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents with HasL1PrefetchSourceParameter {
   val io = IO(new Bundle() {
     // probe queue
     val probe_req = Flipped(DecoupledIO(new MainPipeReq))
@@ -136,7 +137,7 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
     val meta_write = DecoupledIO(new CohMetaWriteReq)
     val extra_meta_resp = Input(Vec(nWays, new DCacheExtraMeta))
     val error_flag_write = DecoupledIO(new FlagMetaWriteReq)
-    val prefetch_flag_write = DecoupledIO(new FlagMetaWriteReq)
+    val prefetch_flag_write = DecoupledIO(new SourceMetaWriteReq)
     val access_flag_write = DecoupledIO(new FlagMetaWriteReq)
 
     // tag sram
@@ -306,8 +307,8 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   val s1_extra_meta = Mux1H(s1_tag_match_way, wayMap(w => io.extra_meta_resp(w)))
   val s1_l2_error = s1_req.error
 
-  XSPerfAccumulate("probe_unused_prefetch", s1_req.probe && s1_extra_meta.prefetch && !s1_extra_meta.access) // may not be accurate
-  XSPerfAccumulate("replace_unused_prefetch", s1_req.replace && s1_extra_meta.prefetch && !s1_extra_meta.access) // may not be accurate
+  XSPerfAccumulate("probe_unused_prefetch", s1_req.probe && isFromL1Prefetch(s1_extra_meta.prefetch) && !s1_extra_meta.access) // may not be accurate
+  XSPerfAccumulate("replace_unused_prefetch", s1_req.replace && isFromL1Prefetch(s1_extra_meta.prefetch) && !s1_extra_meta.access) // may not be accurate
 
   // replacement policy
   val s1_invalid_vec = wayMap(w => !meta_resp(w).asTypeOf(new Meta).coh.isValid())
@@ -316,11 +317,7 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   val s1_repl_way_en = WireInit(0.U(nWays.W))
   s1_repl_way_en := Mux(
     RegNext(s0_fire),
-    Mux(
-      s1_have_invalid_way,
-      s1_invalid_way_en,
-      UIntToOH(io.replace_way.way)
-      ),
+    UIntToOH(io.replace_way.way),
     RegNext(s1_repl_way_en)
   )
   val s1_repl_tag = Mux1H(s1_repl_way_en, wayMap(w => tag_resp(w)))
@@ -372,9 +369,8 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   val s1_hit = s1_tag_match && s1_has_permission
   val s1_pregen_can_go_to_mq = !s1_req.replace && !s1_req.probe && !s1_req.miss && (s1_req.isStore || s1_req.isAMO) && !s1_hit
 
-  val s1_ttob_probe = s1_valid && s1_req.probe && s1_req.probe_param === TLPermissions.toB
-  io.probe_ttob_check_req.valid := s1_ttob_probe
-  io.probe_ttob_check_req.bits.addr := get_block_addr(Cat(s1_tag, get_untag(s1_req.vaddr)))
+  val s1_ttob_probe_valid = s1_valid && s1_req.probe && s1_req.probe_param === TLPermissions.toB
+  val s1_ttob_probe_addr = get_block_addr(Cat(s1_tag, get_untag(s1_req.vaddr)))
 
   // s2: select data, return resp if this is a store miss
   val s2_valid = RegInit(false.B)
@@ -466,8 +462,11 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
 
   val s2_data_word = s2_store_data_merged(s2_req.word_idx)
 
-  val s2_probe_ttob_check_resp = Wire(io.probe_ttob_check_resp.cloneType)
-  s2_probe_ttob_check_resp := Mux(RegNext(s1_fire), io.probe_ttob_check_resp, RegNext(s2_probe_ttob_check_resp))
+  val s2_ttob_probe_valid = RegEnable(s1_ttob_probe_valid, s1_fire)
+  val s2_ttob_probe_addr = RegEnable(s1_ttob_probe_addr, s1_fire)
+
+  io.probe_ttob_check_req.valid := s2_ttob_probe_valid && s2_valid
+  io.probe_ttob_check_req.bits.addr := s2_ttob_probe_addr
 
   // s3: write data, meta and tag
   val s3_valid = RegInit(false.B)
@@ -498,7 +497,8 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   val s3_error = RegEnable(s2_error, s2_fire_to_s3) || s3_data_error
   val (_, _, probe_new_coh) = s3_coh.onProbe(s3_req.probe_param)
   val s3_need_replacement = RegEnable(s2_need_replacement, s2_fire_to_s3)
-  val s3_probe_ttob_check_resp = RegEnable(s2_probe_ttob_check_resp, s2_fire_to_s3)
+  val s3_probe_ttob_check_resp_r = RegEnable(io.probe_ttob_check_resp, RegNext(s2_fire_to_s3))
+  val s3_probe_ttob_check_resp = Mux(RegNext(s2_fire_to_s3), io.probe_ttob_check_resp, s3_probe_ttob_check_resp_r)
 
   // duplicate regs to reduce fanout
   val s3_valid_dup = RegInit(VecInit(Seq.fill(14)(false.B)))
@@ -1436,6 +1436,7 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   val miss_req = io.miss_req.bits
   miss_req := DontCare
   miss_req.source := s2_req.source
+  miss_req.pf_source := L1_HW_PREFETCH_NULL
   miss_req.cmd := s2_req.cmd
   miss_req.addr := s2_req.addr
   miss_req.vaddr := s2_req_vaddr_dup_for_miss_req
@@ -1448,6 +1449,7 @@ class MainPipe(implicit p: Parameters) extends DCacheModule with HasPerfEvents {
   miss_req.req_coh := s2_hit_coh
   miss_req.replace_coh := s2_repl_coh
   miss_req.replace_tag := s2_repl_tag
+  miss_req.replace_pf := L1_HW_PREFETCH_STORE // TODO: support store cache pollution monitor
   miss_req.id := s2_req.id
   miss_req.cancel := false.B
   miss_req.pc := DontCare

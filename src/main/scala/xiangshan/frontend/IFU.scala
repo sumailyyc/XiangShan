@@ -465,7 +465,8 @@ class NewIFU(implicit p: Parameters) extends XSModule
     expander.io.out.bits
   })
 
-  val f3_pd             = RegEnable(f2_pd,          f2_fire)
+  val f3_pd_wire        = RegEnable(f2_pd,          f2_fire)
+  val f3_pd             = WireInit(f3_pd_wire)
   val f3_jump_offset    = RegEnable(f2_jump_offset, f2_fire)
   val f3_af_vec         = RegEnable(f2_af_vec,      f2_fire)
   val f3_pf_vec         = RegEnable(f2_pf_vec ,     f2_fire)
@@ -480,8 +481,25 @@ class NewIFU(implicit p: Parameters) extends XSModule
   val f3_pAddrs   = RegEnable(f2_paddrs,  f2_fire)
   val f3_resend_vaddr   = RegEnable(f2_resend_vaddr,       f2_fire)
 
+  // Expand 1 bit to prevent overflow when assert
+  val f3_ftq_req_startAddr      = Cat(0.U(1.W), f3_ftq_req.startAddr)
+  val f3_ftq_req_nextStartAddr  = Cat(0.U(1.W), f3_ftq_req.nextStartAddr)
+  // brType, isCall and isRet generation is delayed to f3 stage
+  val f3Predecoder = Module(new F3Predecoder)
+
+  f3Predecoder.io.in.instr := f3_instr
+
+  f3_pd.zipWithIndex.map{ case (pd,i) =>
+    pd.brType := f3Predecoder.io.out.pd(i).brType
+    pd.isCall := f3Predecoder.io.out.pd(i).isCall
+    pd.isRet  := f3Predecoder.io.out.pd(i).isRet
+  }
+
+  val f3PdDiff = f3_pd_wire.zip(f3_pd).map{ case (a,b) => a.asUInt =/= b.asUInt }.reduce(_||_)
+  XSError(f3_valid && f3PdDiff, "f3 pd diff")
+
   when(f3_valid && !f3_ftq_req.ftqOffset.valid){
-    assert(f3_ftq_req.startAddr + 32.U >= f3_ftq_req.nextStartAddr , "More tha 32 Bytes fetch is not allowed!")
+    assert(f3_ftq_req_startAddr + (2*PredictWidth).U >= f3_ftq_req_nextStartAddr, s"More tha ${2*PredictWidth} Bytes fetch is not allowed!")
   }
 
   /*** MMIO State Machine***/
@@ -840,7 +858,7 @@ class NewIFU(implicit p: Parameters) extends XSModule
   checkFlushWb.bits.cfiOffset.valid   := ParallelOR(wb_check_result_stage1.fixedTaken)
   checkFlushWb.bits.cfiOffset.bits    := ParallelPriorityEncoder(wb_check_result_stage1.fixedTaken)
   checkFlushWb.bits.target            := Mux(wb_half_flush, wb_half_target, wb_check_result_stage2.fixedTarget(checkFlushWbTargetIdx))
-  checkFlushWb.bits.jalTarget         := wb_check_result_stage2.fixedTarget(checkFlushWbjalTargetIdx)
+  checkFlushWb.bits.jalTarget         := wb_check_result_stage2.jalTarget(checkFlushWbjalTargetIdx)
   checkFlushWb.bits.instrRange        := wb_instr_range.asTypeOf(Vec(PredictWidth, Bool()))
 
   toFtq.pdWb := Mux(wb_valid, checkFlushWb,  mmioFlushWb)

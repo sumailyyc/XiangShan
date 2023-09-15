@@ -93,12 +93,12 @@ class Ftq_RF_Components(implicit p: Parameters) extends XSBundle with BPUUtils {
   }
   def fromBranchPrediction(resp: BranchPredictionBundle) = {
     def carryPos(addr: UInt) = addr(instOffsetBits+log2Ceil(PredictWidth)+1)
-    this.startAddr := resp.pc
-    this.nextLineAddr := resp.pc + (FetchWidth * 4 * 2).U // may be broken on other configs
+    this.startAddr := resp.pc(3)
+    this.nextLineAddr := resp.pc(3) + (FetchWidth * 4 * 2).U // may be broken on other configs
     this.isNextMask := VecInit((0 until PredictWidth).map(i =>
-      (resp.pc(log2Ceil(PredictWidth), 1) +& i.U)(log2Ceil(PredictWidth)).asBool
+      (resp.pc(3)(log2Ceil(PredictWidth), 1) +& i.U)(log2Ceil(PredictWidth)).asBool
     ))
-    this.fallThruError := resp.fallThruError
+    this.fallThruError := resp.fallThruError(3)
     this
   }
   override def toPrintable: Printable = {
@@ -526,15 +526,15 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
 
   val bpu_s2_resp = io.fromBpu.resp.bits.s2
   val bpu_s3_resp = io.fromBpu.resp.bits.s3
-  val bpu_s2_redirect = bpu_s2_resp.valid && bpu_s2_resp.hasRedirect
-  val bpu_s3_redirect = bpu_s3_resp.valid && bpu_s3_resp.hasRedirect
+  val bpu_s2_redirect = bpu_s2_resp.valid(3) && bpu_s2_resp.hasRedirect(3)
+  val bpu_s3_redirect = bpu_s3_resp.valid(3) && bpu_s3_resp.hasRedirect(3)
 
   io.toBpu.enq_ptr := bpuPtr
   val enq_fire = io.fromBpu.resp.fire && allowBpuIn // from bpu s1
   val bpu_in_fire = (io.fromBpu.resp.fire || bpu_s2_redirect || bpu_s3_redirect) && allowBpuIn
 
   val bpu_in_resp = io.fromBpu.resp.bits.selectedResp
-  val bpu_in_stage = io.fromBpu.resp.bits.selectedRespIdx
+  val bpu_in_stage = io.fromBpu.resp.bits.selectedRespIdxForFtq
   val bpu_in_resp_ptr = Mux(bpu_in_stage === BP_S1, bpuPtr, bpu_in_resp.ftq_idx)
   val bpu_in_resp_idx = bpu_in_resp_ptr.value
 
@@ -548,7 +548,7 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   //                                                            ifuRedirect + backendRedirect + commit
   val ftq_redirect_sram = Module(new FtqNRSRAM(new Ftq_Redirect_SRAMEntry, 1+1+1))
   // these info is intended to enq at the last stage of bpu
-  ftq_redirect_sram.io.wen := io.fromBpu.resp.bits.lastStage.valid
+  ftq_redirect_sram.io.wen := io.fromBpu.resp.bits.lastStage.valid(3)
   ftq_redirect_sram.io.waddr := io.fromBpu.resp.bits.lastStage.ftq_idx.value
   ftq_redirect_sram.io.wdata := io.fromBpu.resp.bits.last_stage_spec_info
   println(f"ftq redirect SRAM: entry ${ftq_redirect_sram.io.wdata.getWidth} * ${FtqSize} * 3")
@@ -556,12 +556,12 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
 
   val ftq_meta_1r_sram = Module(new FtqNRSRAM(new Ftq_1R_SRAMEntry, 1))
   // these info is intended to enq at the last stage of bpu
-  ftq_meta_1r_sram.io.wen := io.fromBpu.resp.bits.lastStage.valid
+  ftq_meta_1r_sram.io.wen := io.fromBpu.resp.bits.lastStage.valid(3)
   ftq_meta_1r_sram.io.waddr := io.fromBpu.resp.bits.lastStage.ftq_idx.value
   ftq_meta_1r_sram.io.wdata.meta := io.fromBpu.resp.bits.last_stage_meta
   //                                                            ifuRedirect + backendRedirect + commit
   val ftb_entry_mem = Module(new SyncDataModuleTemplate(new FTBEntry, FtqSize, 1+1+1, 1))
-  ftb_entry_mem.io.wen(0) := io.fromBpu.resp.bits.lastStage.valid
+  ftb_entry_mem.io.wen(0) := io.fromBpu.resp.bits.lastStage.valid(3)
   ftb_entry_mem.io.waddr(0) := io.fromBpu.resp.bits.lastStage.ftq_idx.value
   ftb_entry_mem.io.wdata(0) := io.fromBpu.resp.bits.last_stage_ftb_entry
 
@@ -573,6 +573,7 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   val cfiIndex_vec = Reg(Vec(FtqSize, ValidUndirectioned(UInt(log2Ceil(PredictWidth).W))))
   val mispredict_vec = Reg(Vec(FtqSize, Vec(PredictWidth, Bool())))
   val pred_stage = Reg(Vec(FtqSize, UInt(2.W)))
+  val pred_s1_cycle = if (!env.FPGAPlatform) Some(Reg(Vec(FtqSize, UInt(64.W)))) else None
 
   val c_invalid :: c_valid :: c_commited :: Nil = Enum(3)
   val commitStateQueue = RegInit(VecInit(Seq.fill(FtqSize) {
@@ -589,8 +590,8 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   val last_cycle_bpu_in = RegNext(bpu_in_fire)
   val last_cycle_bpu_in_ptr = RegNext(bpu_in_resp_ptr)
   val last_cycle_bpu_in_idx = last_cycle_bpu_in_ptr.value
-  val last_cycle_bpu_target = RegNext(bpu_in_resp.getTarget)
-  val last_cycle_cfiIndex = RegNext(bpu_in_resp.cfiIndex)
+  val last_cycle_bpu_target = RegNext(bpu_in_resp.getTarget(3))
+  val last_cycle_cfiIndex = RegNext(bpu_in_resp.cfiIndex(3))
   val last_cycle_bpu_in_stage = RegNext(bpu_in_stage)
 
   def extra_copyNum_for_commitStateQueue = 2
@@ -611,6 +612,13 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   when (RegNext(last_cycle_bpu_in)) {
     mispredict_vec(RegNext(last_cycle_bpu_in_idx)) := WireInit(VecInit(Seq.fill(PredictWidth)(false.B)))
   }
+
+  // record s1 pred cycles
+  pred_s1_cycle.map(vec => {
+    when (bpu_in_fire && (bpu_in_stage === BP_S1)) {
+      vec(bpu_in_resp_ptr.value) := bpu_in_resp.full_pred(0).predCycle.getOrElse(0.U)
+    }
+  })
   
   // reduce fanout using copied last_cycle_bpu_in and copied last_cycle_bpu_in_ptr
   val copied_last_cycle_bpu_in_for_ftq = copied_last_cycle_bpu_in.takeRight(extra_copyNum_for_commitStateQueue)
@@ -641,14 +649,14 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   }
 
   // only use ftb result to assign hit status
-  when (bpu_s2_resp.valid) {
-    entry_hit_status(bpu_s2_resp.ftq_idx.value) := Mux(bpu_s2_resp.full_pred.hit, h_hit, h_not_hit)
+  when (bpu_s2_resp.valid(3)) {
+    entry_hit_status(bpu_s2_resp.ftq_idx.value) := Mux(bpu_s2_resp.full_pred(3).hit, h_hit, h_not_hit)
   }
 
 
   io.toIfu.flushFromBpu.s2.valid := bpu_s2_redirect
   io.toIfu.flushFromBpu.s2.bits := bpu_s2_resp.ftq_idx
-  when (bpu_s2_resp.valid && bpu_s2_resp.hasRedirect) {
+  when (bpu_s2_redirect) {
     bpuPtr := bpu_s2_resp.ftq_idx + 1.U
     copied_bpu_ptr.map(_ := bpu_s2_resp.ftq_idx + 1.U)
     // only when ifuPtr runs ahead of bpu s2 resp should we recover it
@@ -661,7 +669,7 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
 
   io.toIfu.flushFromBpu.s3.valid := bpu_s3_redirect
   io.toIfu.flushFromBpu.s3.bits := bpu_s3_resp.ftq_idx
-  when (bpu_s3_resp.valid && bpu_s3_resp.hasRedirect) {
+  when (bpu_s3_redirect) {
     bpuPtr := bpu_s3_resp.ftq_idx + 1.U
     copied_bpu_ptr.map(_ := bpu_s3_resp.ftq_idx + 1.U)
     // only when ifuPtr runs ahead of bpu s2 resp should we recover it
@@ -945,7 +953,7 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
 
   val toBpuCfi = ifuRedirectToBpu.bits.cfiUpdate
   toBpuCfi.fromFtqRedirectSram(ftq_redirect_sram.io.rdata.head)
-  when (ifuRedirectReg.bits.cfiUpdate.pd.isRet) {
+  when (ifuRedirectReg.bits.cfiUpdate.pd.isRet && ifuRedirectReg.bits.cfiUpdate.pd.valid) {
     toBpuCfi.target := toBpuCfi.rasEntry.retAddr
   }
 
@@ -1107,6 +1115,10 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   // ****************************************************************
 
   io.toBpu.redirect := Mux(fromBackendRedirect.valid, fromBackendRedirect, ifuRedirectToBpu)
+  val dummy_s1_pred_cycle_vec = VecInit(List.tabulate(FtqSize)(_=>0.U(64.W)))
+  val redirect_latency = GTimer() - pred_s1_cycle.getOrElse(dummy_s1_pred_cycle_vec)(io.toBpu.redirect.bits.ftqIdx.value) + 1.U
+  XSPerfHistogram("backend_redirect_latency", redirect_latency, fromBackendRedirect.valid, 0, 60, 1)
+  XSPerfHistogram("ifu_redirect_latency", redirect_latency, !fromBackendRedirect.valid && ifuRedirectToBpu.valid, 0, 60, 1)
 
   XSError(io.toBpu.redirect.valid && isBefore(io.toBpu.redirect.bits.ftqIdx, commPtr), "Ftq received a redirect after its commit, check backend or replay")
 
@@ -1252,11 +1264,11 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
 
     ftq_pc_mem.io.other_raddrs(0) := prefetchPtr.value
 
-    when (bpu_s2_resp.valid && bpu_s2_resp.hasRedirect && !isBefore(prefetchPtr, bpu_s2_resp.ftq_idx)) {
+    when (bpu_s2_redirect && !isBefore(prefetchPtr, bpu_s2_resp.ftq_idx)) {
       prefetchPtr := bpu_s2_resp.ftq_idx
     }
 
-    when (bpu_s3_resp.valid && bpu_s3_resp.hasRedirect && !isBefore(prefetchPtr, bpu_s3_resp.ftq_idx)) {
+    when (bpu_s3_redirect && !isBefore(prefetchPtr, bpu_s3_resp.ftq_idx)) {
       prefetchPtr := bpu_s3_resp.ftq_idx
       // XSError(true.B, "\ns3_redirect mechanism not implemented!\n")
     }
@@ -1373,24 +1385,11 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   XSPerfAccumulate("bpu_to_ifu_bubble", bpuPtr === ifuPtr)
 
   val from_bpu = io.fromBpu.resp.bits
-  def in_entry_len_map_gen(resp: BpuToFtqBundle)(stage: String) = {
-    val entry_len = (resp.last_stage_ftb_entry.getFallThrough(resp.s3.pc) - resp.s3.pc) >> instOffsetBits
-    val entry_len_recording_vec = (1 to PredictWidth+1).map(i => entry_len === i.U)
-    val entry_len_map = (1 to PredictWidth+1).map(i =>
-      f"${stage}_ftb_entry_len_$i" -> (entry_len_recording_vec(i-1) && resp.s3.valid)
-    ).foldLeft(Map[String, UInt]())(_+_)
-    entry_len_map
-  }
-  val s3_entry_len_map = in_entry_len_map_gen(from_bpu)("s3")
-
   val to_ifu = io.toIfu.req.bits
 
 
+  XSPerfHistogram("commit_num_inst", PopCount(commit_inst_mask), do_commit, 0, PredictWidth+1, 1)
 
-  val commit_num_inst_recording_vec = (1 to PredictWidth).map(i => PopCount(commit_inst_mask) === i.U)
-  val commit_num_inst_map = (1 to PredictWidth).map(i =>
-    f"commit_num_inst_$i" -> (commit_num_inst_recording_vec(i-1) && do_commit)
-  ).foldLeft(Map[String, UInt]())(_+_)
 
 
 
@@ -1447,18 +1446,14 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
   val ftb_modified_entry_br_full = ftb_modified_entry && ftbEntryGen.is_br_full
   val ftb_modified_entry_always_taken = ftb_modified_entry && ftbEntryGen.is_always_taken_modified
 
-  val ftb_entry_len = (ftbEntryGen.new_entry.getFallThrough(update.pc) - update.pc) >> instOffsetBits
-  val ftb_entry_len_recording_vec = (1 to PredictWidth+1).map(i => ftb_entry_len === i.U)
-  val ftb_init_entry_len_map = (1 to PredictWidth+1).map(i =>
-    f"ftb_init_entry_len_$i" -> (ftb_entry_len_recording_vec(i-1) && ftb_new_entry)
-  ).foldLeft(Map[String, UInt]())(_+_)
-  val ftb_modified_entry_len_map = (1 to PredictWidth+1).map(i =>
-    f"ftb_modified_entry_len_$i" -> (ftb_entry_len_recording_vec(i-1) && ftb_modified_entry)
-  ).foldLeft(Map[String, UInt]())(_+_)
-
-  val ftq_occupancy_map = (0 to FtqSize).map(i =>
-    f"ftq_has_entry_$i" ->( validEntries === i.U)
-  ).foldLeft(Map[String, UInt]())(_+_)
+  def getFtbEntryLen(pc: UInt, entry: FTBEntry) = (entry.getFallThrough(pc) - pc) >> instOffsetBits
+  val gen_ftb_entry_len = getFtbEntryLen(update.pc, ftbEntryGen.new_entry)
+  XSPerfHistogram("ftb_init_entry_len", gen_ftb_entry_len, ftb_new_entry, 0, PredictWidth+1, 1)
+  XSPerfHistogram("ftb_modified_entry_len", gen_ftb_entry_len, ftb_modified_entry, 0, PredictWidth+1, 1)
+  val s3_ftb_entry_len = getFtbEntryLen(from_bpu.s3.pc(0), from_bpu.last_stage_ftb_entry)
+  XSPerfHistogram("s3_ftb_entry_len", s3_ftb_entry_len, from_bpu.s3.valid(0), 0, PredictWidth+1, 1)
+  
+  XSPerfHistogram("ftq_has_entry", validEntries, true.B, 0, FtqSize+1, 1)
 
   val perfCountsMap = Map(
     "BpInstr" -> PopCount(mbpInstrs),
@@ -1488,10 +1483,8 @@ class Ftq(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelpe
     "ftb_jalr_target_modified"     -> PopCount(ftb_modified_entry_jalr_target_modified),
     "ftb_modified_entry_br_full"   -> PopCount(ftb_modified_entry_br_full),
     "ftb_modified_entry_always_taken" -> PopCount(ftb_modified_entry_always_taken)
-  ) ++ ftb_init_entry_len_map ++ ftb_modified_entry_len_map ++
-  s3_entry_len_map ++ commit_num_inst_map ++ ftq_occupancy_map ++
-  mispred_stage_map ++ br_mispred_stage_map ++ jalr_mispred_stage_map ++
-  correct_stage_map ++ br_correct_stage_map ++ jalr_correct_stage_map
+  ) ++ mispred_stage_map ++ br_mispred_stage_map ++ jalr_mispred_stage_map ++
+       correct_stage_map ++ br_correct_stage_map ++ jalr_correct_stage_map
 
   for((key, value) <- perfCountsMap) {
     XSPerfAccumulate(key, value)
