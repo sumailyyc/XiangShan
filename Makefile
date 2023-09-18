@@ -126,6 +126,7 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	@mv .__out__ $@
 	@rm .__head__ .__diff__
 	sed -i -e 's/$$fatal/xs_assert(`__LINE__)/g' $(SIM_TOP_V)
+	sed -i -e 's/__PERCENTAGE_M__/%m/g' $(SIM_TOP_V)
 
 sim-verilog: $(SIM_TOP_V)
 
