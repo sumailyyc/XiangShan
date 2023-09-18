@@ -17,6 +17,7 @@ import xiangshan.backend.issue.{ImmExtractor, IntScheduler, MemScheduler, VfSche
 import xiangshan.backend.regfile._
 
 class DataPath(params: BackendParams)(implicit p: Parameters) extends LazyModule {
+  override def shouldBeInlined: Boolean = false
   private implicit val dpParams: BackendParams = params
   lazy val module = new DataPathImp(this)
 

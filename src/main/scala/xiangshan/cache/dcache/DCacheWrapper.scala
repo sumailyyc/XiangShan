@@ -659,6 +659,7 @@ class DCacheIO(implicit p: Parameters) extends DCacheBundle {
 
 
 class DCache()(implicit p: Parameters) extends LazyModule with HasDCacheParameters {
+  override def shouldBeInlined: Boolean = false
 
   val clientParameters = TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
@@ -1168,6 +1169,7 @@ class AMOHelper() extends ExtModule {
 }
 
 class DCacheWrapper()(implicit p: Parameters) extends LazyModule with HasXSParameter {
+  override def shouldBeInlined: Boolean = false
 
   val useDcache = coreParams.dcacheParametersOpt.nonEmpty
   val clientNode = if (useDcache) TLIdentityNode() else null

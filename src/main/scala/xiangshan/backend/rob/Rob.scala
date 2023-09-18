@@ -303,6 +303,7 @@ class RobFlushInfo(implicit p: Parameters) extends XSBundle {
 }
 
 class Rob(params: BackendParams)(implicit p: Parameters) extends LazyModule with HasXSParameter {
+  override def shouldBeInlined: Boolean = false
 
   lazy val module = new RobImp(this)(p, params)
   //

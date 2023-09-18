@@ -45,6 +45,7 @@ class Std(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
 
 class MemBlock()(implicit p: Parameters) extends LazyModule
   with HasXSParameter {
+  override def shouldBeInlined: Boolean = false
 
   val dcache = LazyModule(new DCacheWrapper())
   val uncache = LazyModule(new Uncache())

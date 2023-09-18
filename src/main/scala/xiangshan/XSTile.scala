@@ -36,6 +36,7 @@ class XSTileMisc()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
   with HasSoCParameter
 {
+  override def shouldBeInlined: Boolean = false
   val l1_xbar = TLXbar()
   val mmio_xbar = TLXbar()
   val mmio_port = TLIdentityNode() // to L3
@@ -77,6 +78,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
   with HasSoCParameter
 {
+  override def shouldBeInlined: Boolean = false
   val core = LazyModule(new XSCore())
   private val misc = LazyModule(new XSTileMisc())
   private val l2cache = coreParams.L2CacheParamsOpt.map(l2param =>

@@ -42,6 +42,8 @@ class CtrlToFtqIO(implicit p: Parameters) extends XSBundle {
 }
 
 class CtrlBlock(params: BackendParams)(implicit p: Parameters) extends LazyModule {
+  override def shouldBeInlined: Boolean = false
+
   val rob = LazyModule(new Rob(params))
 
   lazy val module = new CtrlBlockImp(this)(p, params)
