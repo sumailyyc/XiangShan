@@ -478,7 +478,7 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
 
   // data for debug
   // Warn: debug_* prefix should not exist in generated verilog.
-  val debug_microOp = Mem(RobSize, new MicroOp)
+  val debug_microOp = Reg(Vec(RobSize, new MicroOp))
   val debug_exuData = Reg(Vec(RobSize, UInt(XLEN.W)))//for debug
   val debug_exuDebug = Reg(Vec(RobSize, new DebugBundle))//for debug
   val debug_lsInfo = RegInit(VecInit(Seq.fill(RobSize)(DebugLsInfo.init)))
@@ -751,7 +751,7 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
   // when mispredict branches writeback, stop commit in the next 2 cycles
   // TODO: don't check all exu write back
   val misPredWb = Cat(VecInit(exuWriteback.map(wb =>
-    wb.bits.redirect.cfiUpdate.isMisPred && wb.bits.redirectValid
+    wb.bits.redirect.cfiUpdate.isMisPred && wb.bits.redirectValid && wb.valid
   ))).orR
   val misPredBlockCounter = Reg(UInt(3.W))
   misPredBlockCounter := Mux(misPredWb,
