@@ -219,6 +219,8 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
 
   loadQueue.io.uncache := DontCare
   storeQueue.io.uncache := DontCare
+  loadQueue.io.uncache.req.ready := false.B
+  storeQueue.io.uncache.req.ready := false.B
   loadQueue.io.uncache.resp.valid := false.B
   storeQueue.io.uncache.resp.valid := false.B
   when(loadQueue.io.uncache.req.valid){

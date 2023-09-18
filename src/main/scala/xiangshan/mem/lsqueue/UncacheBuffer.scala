@@ -383,7 +383,7 @@ class UncacheBuffer(implicit p: Parameters) extends XSModule with HasCircularQue
       }
   }
 
-  io.uncache.req.valid := RegNext(uncacheReq.valid)
+  io.uncache.req.valid := RegNext(uncacheReq.valid && !io.uncache.req.fire) // FIXME
   io.uncache.req.bits  := RegNext(uncacheReq.bits)
   io.ldout(0).valid    := RegNext(ldout.valid) && !RegNext(commitFire)
   io.ldout(0).bits     := RegNext(ldout.bits)
