@@ -133,6 +133,7 @@ class Scheduler(
   val hasIntRf: Boolean,
   val hasFpRf: Boolean
 )(implicit p: Parameters) extends LazyModule with HasXSParameter with HasExuWbHelper {
+  override def shouldBeInlined: Boolean = false
   val numDpPorts = dpPorts.length
   val dpExuConfigs = dpPorts.map(port => port.map(_._1).map(configs(_)._1))
   def getDispatch2: Seq[Dispatch2Rs] = {
@@ -518,13 +519,7 @@ class SchedulerImp(outer: Scheduler) extends LazyModuleImp(outer) with HasXSPara
         }
         else {
           val target = mod.io.srcRegValue(idx)
-          val isFp = RegNext(mod.io.fromDispatch(idx).bits.ctrl.srcType(0) === SrcType.fp)
-          val fromFp = if (numIntRfPorts > 0) isFp else false.B
-          when (fromFp) {
-            target := fpRfPorts.take(target.length)
-          }.otherwise {
-            target := DontCare
-          }
+          target := fpRfPorts.take(target.length)
         }
       }
       fpReadPort += numFpRfPorts

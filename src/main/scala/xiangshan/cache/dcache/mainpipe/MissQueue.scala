@@ -223,7 +223,7 @@ class MissReqPipeRegBundle(edge: TLEdgeOut)(implicit p: Parameters) extends DCac
     )._2
     acquire := Mux(req.full_overwrite, acquirePerm, acquireBlock)
     // resolve cache alias by L2
-    acquire.user.lift(AliasKey).foreach( _ := req.vaddr(13, 12))
+    acquire.user.lift(AliasKey).foreach(_ := req.vaddr(13, 12))
     // pass vaddr to l2
     acquire.user.lift(VaddrKey).foreach(_ := req.vaddr(VAddrBits - 1, blockOffBits))
     // trigger prefetch

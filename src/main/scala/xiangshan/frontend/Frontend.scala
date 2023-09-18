@@ -28,6 +28,7 @@ import xiangshan.frontend.icache._
 
 
 class Frontend()(implicit p: Parameters) extends LazyModule with HasXSParameter{
+  override def shouldBeInlined: Boolean = false
 
   val instrUncache  = LazyModule(new InstrUncache())
   val icache        = LazyModule(new ICache())
