@@ -657,7 +657,6 @@ class DCacheIO(implicit p: Parameters) extends DCacheBundle {
   val mshrFull = Output(Bool())
 }
 
-
 class DCache()(implicit p: Parameters) extends LazyModule with HasDCacheParameters {
   override def shouldBeInlined: Boolean = false
 
