@@ -58,7 +58,7 @@ class MissReqWoStoreData(implicit p: Parameters) extends DCacheBundle {
   // * cancel is slow to generate, it will not be used until the last moment
   //
   // cancel may come from the following sources:
-  // 1. miss req blocked by writeback queue: 
+  // 1. miss req blocked by writeback queue:
   //      a writeback req of the same address is in progress
   // 2. pmp check failed
   val cancel = Bool() // cancel is slow to generate, it will cancel missreq.valid
@@ -74,14 +74,14 @@ class MissReqWoStoreData(implicit p: Parameters) extends DCacheBundle {
 }
 
 class MissReqStoreData(implicit p: Parameters) extends DCacheBundle {
-  // store data and store mask will be written to miss queue entry 
+  // store data and store mask will be written to miss queue entry
   // 1 cycle after req.fire() and meta write
   val store_data = UInt((cfg.blockBytes * 8).W)
   val store_mask = UInt(cfg.blockBytes.W)
 }
 
 class MissReq(implicit p: Parameters) extends MissReqWoStoreData {
-  // store data and store mask will be written to miss queue entry 
+  // store data and store mask will be written to miss queue entry
   // 1 cycle after req.fire() and meta write
   val store_data = UInt((cfg.blockBytes * 8).W)
   val store_mask = UInt(cfg.blockBytes.W)
@@ -148,7 +148,7 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
     val mem_grant = Flipped(DecoupledIO(new TLBundleD(edge.bundle)))
     val mem_finish = DecoupledIO(new TLBundleE(edge.bundle))
 
-    // send refill info to load queue 
+    // send refill info to load queue
     val refill_to_ldq = ValidIO(new Refill)
 
     // refill pipe
@@ -389,11 +389,11 @@ class MissEntry(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule {
   def before_req_sent_can_merge(new_req: MissReqWoStoreData): Bool = {
     acquire_not_sent && (req.isFromLoad || req.isFromPrefetch) && (new_req.isFromLoad || new_req.isFromStore)
   }
-  
+
   def before_data_refill_can_merge(new_req: MissReqWoStoreData): Bool = {
     data_not_refilled && (req.isFromLoad || req.isFromStore || req.isFromPrefetch) && new_req.isFromLoad
   }
-  
+
   // Note that late prefetch will be ignored
 
   def should_merge(new_req: MissReqWoStoreData): Bool = {
@@ -620,7 +620,7 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
     val forward = Vec(LoadPipelineWidth, new LduToMissqueueForwardIO)
     val l2_pf_store_only = Input(Bool())
   })
-  
+
   // 128KBL1: FIXME: provide vaddr for l2
 
   val entries = Seq.fill(cfg.nMissEntries)(Module(new MissEntry(edge)))
@@ -672,7 +672,7 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
     if (name.nonEmpty) { out.suggestName(s"${name.get}_select") }
     out.valid := Cat(in.map(_.valid)).orR
     out.bits := ParallelMux(in.map(_.valid) zip in.map(_.bits))
-    in.map(_.ready := out.ready) 
+    in.map(_.ready := out.ready)
     assert(!RegNext(out.valid && PopCount(Cat(in.map(_.valid))) > 1.U))
   }
 
@@ -681,17 +681,17 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
   entries.zipWithIndex.foreach {
     case (e, i) =>
       val former_primary_ready = if(i == 0)
-        false.B 
+        false.B
       else
         Cat((0 until i).map(j => entries(j).io.primary_ready)).orR
-      
+
       e.io.hartId := io.hartId
       e.io.id := i.U
       e.io.l2_pf_store_only := io.l2_pf_store_only
       e.io.req.valid := io.req.valid
-      e.io.primary_valid := io.req.valid && 
-        !merge && 
-        !reject && 
+      e.io.primary_valid := io.req.valid &&
+        !merge &&
+        !reject &&
         !former_primary_ready &&
         e.io.primary_ready
       e.io.req.bits := io.req.bits.toMissReqWoStoreData()
@@ -752,13 +752,13 @@ class MissQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModule wi
 
   // Difftest
   if (env.EnableDifftest) {
-    val difftest = Module(new DifftestRefillEvent)
-    difftest.io.clock := clock
-    difftest.io.coreid := io.hartId
-    difftest.io.cacheid := 1.U
-    difftest.io.valid := io.refill_to_ldq.valid && io.refill_to_ldq.bits.hasdata && io.refill_to_ldq.bits.refill_done
-    difftest.io.addr := io.refill_to_ldq.bits.addr
-    difftest.io.data := io.refill_to_ldq.bits.data_raw.asTypeOf(difftest.io.data)
+    val difftest = DifftestModule(new DiffRefillEvent)
+    difftest.clock := clock
+    difftest.coreid := io.hartId
+    difftest.index := 1.U
+    difftest.valid := io.refill_to_ldq.valid && io.refill_to_ldq.bits.hasdata && io.refill_to_ldq.bits.refill_done
+    difftest.addr := io.refill_to_ldq.bits.addr
+    difftest.data := io.refill_to_ldq.bits.data_raw.asTypeOf(difftest.data)
   }
 
   // Perf count
