@@ -13,7 +13,7 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
-
+/*
 package xiangshan.frontend
 
 import org.chipsalliance.cde.config.Parameters
@@ -306,3 +306,4 @@ class RAS(implicit p: Parameters) extends BasePredictor {
 
   generatePerfEvent()
 }
+*/

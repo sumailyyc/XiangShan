@@ -199,6 +199,10 @@ class RobDispatchTopDownIO extends Bundle {
   val robHeadLsIssue = Output(Bool())
 }
 
+class RobDebugRollingIO extends Bundle {
+  val robTrueCommit = Output(UInt(64.W))
+}
+
 class RobDeqPtrWrapper(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHelper {
   val io = IO(new Bundle {
     // for commits/flush
@@ -443,6 +447,7 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
       val toDispatch = new RobDispatchTopDownIO
       val robHeadLqIdx = Valid(new LqPtr)
     }
+    val debugRolling = new RobDebugRollingIO
   })
 
   def selectWb(index: Int, func: Seq[ExuConfig] => Boolean): Seq[(Seq[ExuConfig], ValidIO[ExuOutput])] = {
@@ -1176,6 +1181,9 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
   io.debugTopDown.toDispatch.robHeadLsIssue := debug_lsIssue(deqPtr.value)
   io.debugTopDown.robHeadLqIdx.valid := debug_lqIdxValid(deqPtr.value)
   io.debugTopDown.robHeadLqIdx.bits  := debug_microOp(deqPtr.value).lqIdx
+  
+  // rolling
+  io.debugRolling.robTrueCommit := ifCommitReg(trueCommitCnt)
 
   /**
     * DataBase info:
@@ -1280,7 +1288,6 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
       val isRVC = dt_isRVC(ptr)
 
       val difftest = DifftestModule(new DiffInstrCommit(NRPhyRegs), delay = 3, dontCare = true)
-      difftest.clock   := clock
       difftest.coreid  := io.hartId
       difftest.index   := i.U
       difftest.valid   := io.commits.commitValid(i) && io.commits.isCommit
@@ -1308,7 +1315,6 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
   if (env.EnableDifftest) {
     for (i <- 0 until CommitWidth) {
       val difftest = DifftestModule(new DiffLoadEvent, delay = 3)
-      difftest.clock  := clock
       difftest.coreid := io.hartId
       difftest.index  := i.U
 
@@ -1334,7 +1340,6 @@ class RobImp(outer: Rob)(implicit p: Parameters) extends LazyModuleImp(outer)
     }
     val hitTrap = trapVec.reduce(_||_)
     val difftest = DifftestModule(new DiffTrapEvent, dontCare = true)
-    difftest.clock    := clock
     difftest.coreid   := io.hartId
     difftest.hasTrap  := hitTrap
     difftest.cycleCnt := timer

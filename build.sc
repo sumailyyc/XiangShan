@@ -178,7 +178,7 @@ object XiangShan extends SbtModule with ScalafmtModule with CommonModule {
 
   override def millSourcePath = millOuterCtx.millSourcePath
 
-  override def forkArgs = Seq("-Xmx64G", "-Xss256m")
+  override def forkArgs = Seq("-Xmx20G", "-Xss256m")
 
   override def ivyDeps = super.ivyDeps() ++ Agg(
     defaultVersions("chisel"),
