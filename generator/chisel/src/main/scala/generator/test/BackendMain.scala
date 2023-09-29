@@ -1,10 +1,12 @@
-package xiangshan.backend
+package generator.test
 
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.diplomacy.LazyModule
-import top.{ArgParser, BaseConfig, Generator}
+import top.{ArgParser, BaseConfig}
+import generator.Generator
 import xiangshan.backend.regfile.IntPregParams
 import xiangshan.{XSCoreParameters, XSCoreParamsKey, XSTileKey}
+import xiangshan.backend._
 
 object BackendMain extends App {
   val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)

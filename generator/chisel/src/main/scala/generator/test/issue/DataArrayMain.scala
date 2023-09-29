@@ -1,9 +1,11 @@
-package xiangshan.backend.issue
+package generator.test.issue
 
 import chisel3._
 import freechips.rocketchip.diplomacy.DisableMonitors
-import top.{ArgParser, BaseConfig, Generator}
+import top.{ArgParser, BaseConfig}
+import generator.Generator
 import xiangshan.{XSCoreParameters, XSCoreParamsKey}
+import xiangshan.backend.issue._
 
 object DataArrayMain extends App {
   val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)

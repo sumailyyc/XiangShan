@@ -32,10 +32,9 @@ object TopMain extends App {
 
   // tools: init to close dpi-c when in fpga
   val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-  val enableChiselDB = config(DebugOptionsKey).EnableChiselDB
   val enableConstantin = config(DebugOptionsKey).EnableConstantin
   Constantin.init(enableConstantin && !envInFPGA)
-  ChiselDB.init(enableChiselDB && !envInFPGA)
+  ChiselDB.init(!envInFPGA)
 
   val soc = DisableMonitors(p => LazyModule(new top.XSTop()(p)))(config)
   Generator.execute(firrtlOpts, soc.module, firtoolOpts)
@@ -48,10 +47,9 @@ object SimTop extends App {
 
   // tools: init to close dpi-c when in fpga
   val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-  val enableChiselDB = config(DebugOptionsKey).EnableChiselDB
   val enableConstantin = config(DebugOptionsKey).EnableConstantin
   Constantin.init(enableConstantin && !envInFPGA)
-  ChiselDB.init(enableChiselDB && !envInFPGA)
+  ChiselDB.init(!envInFPGA)
 
   Generator.execute(
     firrtlOpts,

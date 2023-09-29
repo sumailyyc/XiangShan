@@ -15,7 +15,7 @@ class Alu(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
 
   private val in = io.in.bits
   private val out = io.out.bits
-  aluModule.io.src := in.data.src
+  aluModule.io.src := in.data.src.toSeq
   aluModule.io.func := in.ctrl.fuOpType
   out.res.data := aluModule.io.result
 }

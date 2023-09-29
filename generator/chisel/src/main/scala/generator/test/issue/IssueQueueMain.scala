@@ -1,21 +1,23 @@
-package xiangshan.backend
+package generator.test.issue
 
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.diplomacy.LazyModule
-import top.{ArgParser, BaseConfig, Generator}
-import xiangshan.backend.datapath.DataPath
+import top.{ArgParser, BaseConfig}
+import generator.Generator
 import xiangshan.{XSCoreParameters, XSCoreParamsKey}
+import xiangshan.backend.issue._
 
-
-object DataPathMain extends App {
+object IssueQueueMain extends App {
   val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
 
   val backendParams = config(XSCoreParamsKey).backendParams
-  val dataPath = LazyModule(new DataPath(backendParams)(config))
+
+  val iqParams: IssueBlockParams = backendParams.intSchdParams.get.issueBlockParams.head
+  val iq: IssueQueue = LazyModule(new IssueQueue(iqParams)(config))
 
   Generator.execute(
     firrtlOpts,
-    dataPath.module,
+    iq.module,
     firtoolOpts
   )
 }

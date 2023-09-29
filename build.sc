@@ -49,6 +49,10 @@ val defaultVersions = Map(
 )
 
 trait CommonModule extends ScalaModule {
+  val resourcesPATH = os.pwd.toString() + "/src/main/resources"
+  val envPATH = sys.env("PATH") + ":" + resourcesPATH
+  override def forkEnv = Map("PATH" -> envPATH)
+
   override def scalaVersion = defaultScalaVersion
 
   override def scalacPluginIvyDeps = Agg(defaultVersions("chisel-plugin"))
