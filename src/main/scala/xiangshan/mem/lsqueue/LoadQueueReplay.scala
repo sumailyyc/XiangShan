@@ -729,18 +729,18 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   val lq_match      = rob_head_lq_match._1 && robHeadVaddr.valid
   val lq_match_idx  = lq_match_bits.lqIdx.value
 
-  val rob_head_tlb_miss        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_TM))
-  val rob_head_nuke            = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_NK))
-  val rob_head_mem_amb         = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_MA))
-  val rob_head_confilct_replay = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_BC))
-  val rob_head_forward_fail    = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_FF))
-  val rob_head_mshrfull_replay = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DR))
-  val rob_head_dcache_miss     = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DM))
-  val rob_head_rar_nack        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAR))
-  val rob_head_raw_nack        = WireDefault(lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAW))
-  val rob_head_other_replay    = WireDefault(lq_match && (rob_head_rar_nack || rob_head_raw_nack || rob_head_forward_fail))
+  val rob_head_tlb_miss        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_TM)
+  val rob_head_nuke            = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_NK)
+  val rob_head_mem_amb         = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_MA)
+  val rob_head_confilct_replay = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_BC)
+  val rob_head_forward_fail    = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_FF)
+  val rob_head_mshrfull_replay = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DR)
+  val rob_head_dcache_miss     = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_DM)
+  val rob_head_rar_nack        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAR)
+  val rob_head_raw_nack        = lq_match && cause(lq_match_idx)(LoadReplayCauses.C_RAW)
+  val rob_head_other_replay    = lq_match && (rob_head_rar_nack || rob_head_raw_nack || rob_head_forward_fail)
 
-  val rob_head_vio_replay = WireDefault(rob_head_nuke || rob_head_mem_amb)
+  val rob_head_vio_replay = rob_head_nuke || rob_head_mem_amb
 
   val rob_head_miss_in_dtlb = io.debugTopDown.robHeadMissInDTlb
   io.debugTopDown.robHeadTlbReplay := rob_head_tlb_miss && !rob_head_miss_in_dtlb

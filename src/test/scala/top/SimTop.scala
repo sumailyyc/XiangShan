@@ -97,31 +97,4 @@ class SimTop(implicit p: Parameters) extends Module {
   dontTouch(logEnable)
   dontTouch(clean)
   dontTouch(dump)
-
-  // Check and dispaly all source and sink connections
-  ExcitingUtils.connectAndDisplay()
-}
-
-object SimTop extends App {
-  // Keep this the same as TopMain except that SimTop is used here instead of XSTop
-  val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
-
-  // tools: init to close dpi-c when in fpga
-  val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-  val enableChiselDB = config(DebugOptionsKey).EnableChiselDB
-  val enableConstantin = config(DebugOptionsKey).EnableConstantin
-  Constantin.init(enableConstantin && !envInFPGA)
-  ChiselDB.init(enableChiselDB && !envInFPGA)
-
-  Generator.execute(
-    firrtlOpts,
-    DisableMonitors(p => new SimTop()(p))(config),
-    firtoolOpts
-  )
-
-  // tools: write cpp files
-  ChiselDB.addToFileRegisters
-  Constantin.addToFileRegisters
-  FileRegisters.write(fileDir = "./build")
-  DifftestModule.finish("XiangShan")
 }

@@ -19,8 +19,8 @@ BUILD_DIR = ./build
 TOP = XSTop
 SIM_TOP = SimTop
 
-FPGATOP = top.TopMain
-SIMTOP  = top.SimTop
+FPGATOP = generator.TopMain
+SIMTOP  = generator.SimTop
 
 TOP_V = $(BUILD_DIR)/$(TOP).v
 SIM_TOP_V = $(BUILD_DIR)/$(SIM_TOP).v
@@ -35,17 +35,26 @@ SPLIT_VERILOG = ./scripts/split_verilog.sh
 IMAGE  ?= temp
 CONFIG ?= DefaultConfig
 NUM_CORES ?= 1
+MFC ?= 0
 
-# select firrtl compiler
+FPGA_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(FPGATOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
+SIM_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(SIMTOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
+
+ifeq ($(MFC),1)
 override FPGA_MEM_ARGS = --dump-fir \
                          --firtool-opt -repl-seq-mem \
                          --firtool-opt -repl-seq-mem-file=$(TOP).v.conf \
-                         --firtool-opt --disable-annotation-unknown
+                         --firtool-opt --disable-annotation-unknown \
+						 --firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables \
+						 --firtool-opt -O=release
 override SIM_MEM_ARGS = --dump-fir \
                         --firtool-opt -repl-seq-mem \
                         --firtool-opt -repl-seq-mem-file=$(SIM_TOP).v.conf \
-                        --firtool-opt --disable-annotation-unknown
-
+                        --firtool-opt --disable-annotation-unknown \
+						--firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables \
+						--firtool-opt -O=release
+export ChiselVersion=chisel
+endif
 
 # co-simulation with DRAMsim3
 ifeq ($(WITH_DRAMSIM3),1)
@@ -89,17 +98,19 @@ SED_CMD = sed -i -e 's/_\(aw\|ar\|w\|r\|b\)_\(\|bits_\)/_\1/g'
 .DEFAULT_GOAL = verilog
 
 help:
-	mill -i XiangShan.runMain $(FPGATOP) --help
+	mill -i generator.runMain $(FPGATOP) --help
 
 $(TOP_V): $(SCALA_FILE)
 	mkdir -p $(@D)
-	$(TIME_CMD) mill -i XiangShan.runMain $(FPGATOP) -td $(@D)  \
-		--config $(CONFIG)                                        \
-		$(FPGA_MEM_ARGS)                                          \
-		--num-cores $(NUM_CORES)                                  \
+	$(TIME_CMD) mill -i generator.runMain $(FPGATOP)   \
+		-td $(@D) --config $(CONFIG)                   \
+		$(FPGA_MEM_ARGS)                               \
+		--num-cores $(NUM_CORES)                       \
 		$(RELEASE_ARGS)
+ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(TOP).v
 	$(MEM_GEN_SEP) "$(MEM_GEN)" "$(TOP_V).conf" "$(BUILD_DIR)"
+endif
 	$(SED_CMD) $@
 	@git log -n 1 >> .__head__
 	@git diff >> .__diff__
@@ -115,13 +126,15 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	mkdir -p $(@D)
 	@echo "\n[mill] Generating Verilog files..." > $(TIMELOG)
 	@date -R | tee -a $(TIMELOG)
-	$(TIME_CMD) mill -i XiangShan.test.runMain $(SIMTOP) -td $(@D)  \
-		--config $(CONFIG)                                            \
-		$(SIM_MEM_ARGS)                                               \
-		--num-cores $(NUM_CORES)                                      \
+	$(TIME_CMD) mill -i generator.runMain $(SIMTOP)    \
+		-td $(@D) --config $(CONFIG)                   \
+		$(SIM_MEM_ARGS)                                \
+		--num-cores $(NUM_CORES)                       \
 		$(SIM_ARGS)
+ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(SIM_TOP).v
 	$(MEM_GEN_SEP) "$(MEM_GEN)" "$(SIM_TOP_V).conf" "$(BUILD_DIR)"
+endif
 	$(SED_CMD) $@
 	@git log -n 1 >> .__head__
 	@git diff >> .__diff__
@@ -132,13 +145,19 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	@rm .__head__ .__diff__
 	sed -i -e 's/$$fatal/xs_assert(`__LINE__)/g' $(SIM_TOP_V)
 	sed -i -e 's/__PERCENTAGE_M__/%m/g' $(SIM_TOP_V)
+ifeq ($(MFC),1)
 	sed -i -e "s/\$$error(/\$$fwrite(32\'h80000002, /g" $(SIM_TOP_V)
+endif
 
 sim-verilog: $(SIM_TOP_V)
 
 clean:
 	$(MAKE) -C ./difftest clean
 	rm -rf $(BUILD_DIR)
+
+clean-all:
+	$(MAKE) -C ./difftest clean
+	rm -rf $(BUILD_DIR) out
 
 init:
 	git submodule update --init
@@ -166,4 +185,4 @@ simv:
 
 include Makefile.test
 
-.PHONY: verilog sim-verilog emu clean help init bump bsp $(REF_SO)
+.PHONY: verilog sim-verilog emu clean clean-all help init bump bsp $(REF_SO)

@@ -27,7 +27,6 @@ import xiangshan._
 import xiangshan.backend.MemCoreTopDownIO
 import xiangshan.backend.rob.{RobDispatchTopDownIO, RobEnqIO}
 import xiangshan.mem.mdp._
-import chisel3.ExcitingUtils
 
 case class DispatchParameters
 (

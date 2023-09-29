@@ -147,7 +147,7 @@ trait HaveAXI4MemPort {
   ))
 
   val mem_xbar = TLXbar()
-  val l3_mem_pmu = BusPerfMonitor(name = "L3_Mem", enable = !debugOpts.FPGAPlatform, stat_latency = true/*, add_reqkey = true*/)
+  val l3_mem_pmu = BusPerfMonitor(name = "L3_Mem", enable = !debugOpts.FPGAPlatform, stat_latency = true, add_reqkey = true)
   mem_xbar :=*
     TLBuffer.chainNode(2) :=
     TLCacheCork() :=

@@ -32,7 +32,6 @@ import xiangshan.backend.regfile.{Regfile, RfReadPort}
 import xiangshan.backend.rename.{BusyTable, BusyTableReadIO}
 import xiangshan.backend.rob.RobPtr
 import xiangshan.mem.{LsqEnqCtrl, LsqEnqIO, MemWaitUpdateReq, SqPtr}
-import chisel3.ExcitingUtils
 
 class DispatchArbiter(func: Seq[MicroOp => Bool])(implicit p: Parameters) extends XSModule {
   val numTarget = func.length
