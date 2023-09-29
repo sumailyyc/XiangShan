@@ -191,39 +191,6 @@ class CtrlBlockImp(
     io.frontend.toFtq.redirect.bits.cfiUpdate.target := RegNext(flushTarget)
   }
 
-  if (env.EnableTopDown) {
-    val stage2Redirect_valid_when_pending = s2_s4_pendingRedirectValid && s1_s3_redirect.valid
-
-    val stage2_redirect_cycles = RegInit(false.B)                                         // frontend_bound->fetch_lantency->stage2_redirect
-    val MissPredPending = RegInit(false.B); val branch_resteers_cycles = RegInit(false.B) // frontend_bound->fetch_lantency->stage2_redirect->branch_resteers
-    val RobFlushPending = RegInit(false.B); val robFlush_bubble_cycles = RegInit(false.B) // frontend_bound->fetch_lantency->stage2_redirect->robflush_bubble
-    val LdReplayPending = RegInit(false.B); val ldReplay_bubble_cycles = RegInit(false.B) // frontend_bound->fetch_lantency->stage2_redirect->ldReplay_bubble
-
-    when(redirectGen.io.isMisspreRedirect) { MissPredPending := true.B }
-    when(s1_robFlushRedirect.valid)              { RobFlushPending := true.B }
-    when(redirectGen.io.loadReplay.valid)  { LdReplayPending := true.B }
-
-    when (RegNext(io.frontend.toFtq.redirect.valid)) {
-      when(s2_s4_pendingRedirectValid) {                             stage2_redirect_cycles := true.B }
-      when(MissPredPending) { MissPredPending := false.B; branch_resteers_cycles := true.B }
-      when(RobFlushPending) { RobFlushPending := false.B; robFlush_bubble_cycles := true.B }
-      when(LdReplayPending) { LdReplayPending := false.B; ldReplay_bubble_cycles := true.B }
-    }
-
-    when(VecInit(decode.io.out.map(x => x.valid)).asUInt.orR){
-      when(stage2_redirect_cycles) { stage2_redirect_cycles := false.B }
-      when(branch_resteers_cycles) { branch_resteers_cycles := false.B }
-      when(robFlush_bubble_cycles) { robFlush_bubble_cycles := false.B }
-      when(ldReplay_bubble_cycles) { ldReplay_bubble_cycles := false.B }
-    }
-
-    XSPerfAccumulate("stage2_redirect_cycles", stage2_redirect_cycles)
-    XSPerfAccumulate("branch_resteers_cycles", branch_resteers_cycles)
-    XSPerfAccumulate("robFlush_bubble_cycles", robFlush_bubble_cycles)
-    XSPerfAccumulate("ldReplay_bubble_cycles", ldReplay_bubble_cycles)
-    XSPerfAccumulate("s2Redirect_pend_cycles", stage2Redirect_valid_when_pending)
-  }
-
   // vtype commit
   decode.io.commitVType.bits := io.fromDataPath.vtype
   decode.io.commitVType.valid := RegNext(rob.io.isVsetFlushPipe)
