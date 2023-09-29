@@ -27,9 +27,8 @@ import freechips.rocketchip.interrupts.{IntSourceNode, IntSourcePortSimple}
 import freechips.rocketchip.regmapper.{RegField, RegFieldDesc, RegFieldGroup}
 import freechips.rocketchip.tilelink._
 import huancun._
-import huancun.debug.TLLogger
 import top.BusPerfMonitor
-import utility.TLEdgeBuffer
+import utility.{TLEdgeBuffer, TLLogger}
 import xiangshan.backend.fu.PMAConst
 import xiangshan.{DebugOptionsKey, XSTileKey}
 
