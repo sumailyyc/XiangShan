@@ -105,7 +105,6 @@ class XSTop()(implicit p: Parameters) extends BaseXSSoc() with HasSoCParameter
     case None =>
   }
 
-  
   class XSTopImp(wrapper: LazyModule) extends LazyRawModuleImp(wrapper) {
     FileRegisters.add("dts", dts)
     FileRegisters.add("graphml", graphML)
@@ -203,18 +202,4 @@ class XSTop()(implicit p: Parameters) extends BaseXSSoc() with HasSoCParameter
   }
 
   lazy val module = new XSTopImp(this)
-}
-
-object TopMain extends App {
-  val (config, firrtlOpts, firtoolOpts) = ArgParser.parse(args)
-
-    // tools: init to close dpi-c when in fpga
-    val envInFPGA = config(DebugOptionsKey).FPGAPlatform
-    val enableConstantin = config(DebugOptionsKey).EnableConstantin
-    Constantin.init(enableConstantin && !envInFPGA)
-    ChiselDB.init(envInFPGA)
-
-  val soc = DisableMonitors(p => LazyModule(new XSTop()(p)))(config)
-  Generator.execute(firrtlOpts, soc.module, firtoolOpts)
-  FileRegisters.write(fileDir = "./build", filePrefix = "XSTop.")
 }
