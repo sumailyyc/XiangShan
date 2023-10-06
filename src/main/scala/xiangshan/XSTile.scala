@@ -137,6 +137,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     })
 
     dontTouch(io.hartId)
+    l2cache.foreach(_.module.io.debugTopDown <> DontCare) // TODO: connect me
 
     val core_soft_rst = core_reset_sink.in.head._1
 

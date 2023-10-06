@@ -119,6 +119,8 @@ class XSTop()(implicit p: Parameters) extends BaseXSSoc() with HasSoCParameter
     peripheral <> misc.peripheral
     memory <> misc.memory
 
+    l3cacheOpt.foreach(_.module.io.debugTopDown <> DontCare) // TODO: connect me
+
     val io = IO(new Bundle {
       val clock = Input(Bool())
       val reset = Input(AsyncReset())
