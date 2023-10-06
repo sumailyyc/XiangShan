@@ -54,6 +54,8 @@ override SIM_MEM_ARGS = --dump-fir \
 						--firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables \
 						--firtool-opt -O=release
 export ChiselVersion=chisel
+else
+export ChiselVersion=chisel3
 endif
 
 # co-simulation with DRAMsim3
