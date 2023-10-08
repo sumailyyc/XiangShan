@@ -37,25 +37,24 @@ CONFIG ?= DefaultConfig
 NUM_CORES ?= 1
 MFC ?= 0
 
+ifeq ($(MFC),1)
+FPGA_MEM_ARGS = --dump-fir \
+                --firtool-opt -repl-seq-mem \
+                --firtool-opt -repl-seq-mem-file=$(TOP).v.conf \
+                --firtool-opt --disable-annotation-unknown \
+                --firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables,disallowPortDeclSharing \
+                --firtool-opt -O=release
+SIM_MEM_ARGS = --dump-fir \
+               --firtool-opt -repl-seq-mem \
+               --firtool-opt -repl-seq-mem-file=$(SIM_TOP).v.conf \
+               --firtool-opt --disable-annotation-unknown \
+               --firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables,disallowPortDeclSharing \
+               --firtool-opt -O=release
+ChiselVersion=chisel
+else
 FPGA_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(FPGATOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
 SIM_MEM_ARGS = --infer-rw --repl-seq-mem -c:$(SIMTOP):-o:$(@D)/$(@F).conf --gen-mem-verilog full
-
-ifeq ($(MFC),1)
-override FPGA_MEM_ARGS = --dump-fir \
-                         --firtool-opt -repl-seq-mem \
-                         --firtool-opt -repl-seq-mem-file=$(TOP).v.conf \
-                         --firtool-opt --disable-annotation-unknown \
-						 --firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables \
-						 --firtool-opt -O=release
-override SIM_MEM_ARGS = --dump-fir \
-                        --firtool-opt -repl-seq-mem \
-                        --firtool-opt -repl-seq-mem-file=$(SIM_TOP).v.conf \
-                        --firtool-opt --disable-annotation-unknown \
-						--firtool-opt --lowering-options=explicitBitcast,disallowLocalVariables \
-						--firtool-opt -O=release
-export ChiselVersion=chisel
-else
-export ChiselVersion=chisel3
+ChiselVersion=chisel3
 endif
 
 # co-simulation with DRAMsim3
@@ -99,10 +98,10 @@ help:
 
 $(TOP_V): $(SCALA_FILE)
 	mkdir -p $(@D)
-	$(TIME_CMD) mill -i generator.runMain $(FPGATOP)   \
-		-td $(@D) --config $(CONFIG)                   \
-		$(FPGA_MEM_ARGS)                               \
-		--num-cores $(NUM_CORES)                       \
+	$(TIME_CMD) mill -i generator[$(ChiselVersion)].runMain $(FPGATOP)   \
+		-td $(@D) --config $(CONFIG)                                     \
+		$(FPGA_MEM_ARGS)                                                 \
+		--num-cores $(NUM_CORES)                                         \
 		$(RELEASE_ARGS)
 ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(TOP).v
@@ -123,10 +122,10 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	mkdir -p $(@D)
 	@echo "\n[mill] Generating Verilog files..." > $(TIMELOG)
 	@date -R | tee -a $(TIMELOG)
-	$(TIME_CMD) mill -i generator.runMain $(SIMTOP)    \
-		-td $(@D) --config $(CONFIG)                   \
-		$(SIM_MEM_ARGS)                                \
-		--num-cores $(NUM_CORES)                       \
+	$(TIME_CMD) mill -i generator[$(ChiselVersion)].runMain $(SIMTOP)    \
+		-td $(@D) --config $(CONFIG)                                     \
+		$(SIM_MEM_ARGS)                                                  \
+		--num-cores $(NUM_CORES)                                         \
 		$(SIM_ARGS)
 ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(SIM_TOP).v
