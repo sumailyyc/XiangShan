@@ -19,8 +19,8 @@ BUILD_DIR = ./build
 TOP = XSTop
 SIM_TOP = SimTop
 
-FPGATOP = generator.TopMain
-SIMTOP  = generator.SimTop
+FPGATOP = top.TopMain
+SIMTOP  = top.SimTopMain
 
 TOP_V = $(BUILD_DIR)/$(TOP).v
 SIM_TOP_V = $(BUILD_DIR)/$(SIM_TOP).v
@@ -94,11 +94,11 @@ SED_CMD = sed -i -e 's/_\(aw\|ar\|w\|r\|b\)_\(\|bits_\)/_\1/g'
 .DEFAULT_GOAL = verilog
 
 help:
-	mill -i generator.runMain $(FPGATOP) --help
+	mill -i xiangshan.runMain $(FPGATOP) --help
 
 $(TOP_V): $(SCALA_FILE)
 	mkdir -p $(@D)
-	$(TIME_CMD) mill -i generator[$(ChiselVersion)].runMain $(FPGATOP)   \
+	$(TIME_CMD) mill -i xiangshan[$(ChiselVersion)].runMain $(FPGATOP)   \
 		-td $(@D) --config $(CONFIG)                                     \
 		$(FPGA_MEM_ARGS)                                                 \
 		--num-cores $(NUM_CORES)                                         \
@@ -122,10 +122,10 @@ $(SIM_TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	mkdir -p $(@D)
 	@echo "\n[mill] Generating Verilog files..." > $(TIMELOG)
 	@date -R | tee -a $(TIMELOG)
-	$(TIME_CMD) mill -i generator[$(ChiselVersion)].runMain $(SIMTOP)    \
-		-td $(@D) --config $(CONFIG)                                     \
-		$(SIM_MEM_ARGS)                                                  \
-		--num-cores $(NUM_CORES)                                         \
+	$(TIME_CMD) mill -i xiangshan[$(ChiselVersion)].test.runMain $(SIMTOP)    \
+		-td $(@D) --config $(CONFIG)                                          \
+		$(SIM_MEM_ARGS)                                                       \
+		--num-cores $(NUM_CORES)                                              \
 		$(SIM_ARGS)
 ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(SIM_TOP).v

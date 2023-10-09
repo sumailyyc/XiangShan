@@ -189,6 +189,10 @@ trait XiangShan extends CommonModule with ScalafmtModule {
     defaultVersions(crossValue)("chiseltest")
   )
 
+  override def sources = T.sources {
+    super.sources() ++ Seq(PathRef(millSourcePath / s"src-${crossValue}" / "main" / "scala"))
+  }
+
   override def moduleDeps = super.moduleDeps ++ Seq(
     rocketchip(crossValue),
     utility(crossValue),
@@ -206,18 +210,10 @@ trait XiangShan extends CommonModule with ScalafmtModule {
       defaultVersions(crossValue)("scalatest")
     )
 
+    override def sources = T.sources {
+      super.sources() ++ Seq(PathRef(millSourcePath / s"src-${crossValue}" / "test" / "scala"))
+    }
+
     def testFramework = "org.scalatest.tools.Framework"
   }
-}
-
-object generator extends Cross[Generator]("chisel", "chisel3")
-trait Generator extends CommonModule with ScalafmtModule {
-
-  override def millSourcePath = os.pwd / "generator" / crossValue
-
-  override def forkArgs = Seq("-Xmx32G", "-Xss256m")
-
-  override def moduleDeps = super.moduleDeps ++ Seq(
-    xiangshan(crossValue), xiangshan(crossValue).test, difftest(crossValue)
-  )
 }
