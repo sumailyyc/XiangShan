@@ -17,7 +17,7 @@
 package xiangshan
 
 import chisel3._
-import chipsalliance.rocketchip.config.{Config, Parameters}
+import org.chipsalliance.cde.config.{Config, Parameters}
 import chisel3.util.{Valid, ValidIO}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
@@ -110,7 +110,7 @@ class L2Top()(implicit p: Parameters) extends LazyModule
   beu.node := TLBuffer.chainNode(1) := mmio_xbar
   mmio_port := TLBuffer() := mmio_xbar
 
-  lazy val module = new LazyModuleImp(this) {
+  class L2TopImp(wrapper: LazyModule) extends LazyModuleImp(wrapper) {
     val beu_errors = IO(Input(chiselTypeOf(beu.module.io.errors)))
     beu.module.io.errors <> beu_errors
 
@@ -148,4 +148,6 @@ class L2Top()(implicit p: Parameters) extends LazyModule
       debugTopDown.l2MissMatch := false.B
     }
   }
+
+  lazy val module = new L2TopImp(this)
 }
