@@ -209,9 +209,9 @@ class BackendImp(outer: Backend)(implicit p: Parameters) extends LazyModuleImp(o
   })
 
   val ctrlBlock = outer.ctrlBlock.module
-  val wb2Ctrl = outer.wb2Ctrl.module
+  val wb2Ctrl = LazyModule(new Wb2Ctrl(exuConfigs))
   val exuBlocks = outer.exuBlocks.map(_.module)
-  val wbArbiter = outer.wbArbiter.module
+  val wbArbiter = LazyModule(new WbArbiterWrapper(exuConfigs, NRIntWritePorts, NRFpWritePorts))
 
   val mem = io.memBlock
   val frontend = io.frontend

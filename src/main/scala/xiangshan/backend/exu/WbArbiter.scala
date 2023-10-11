@@ -262,7 +262,7 @@ class WbArbiterWrapper(
   }
   override lazy val writebackSourceImp: HasWritebackSourceImp = module
 
-  lazy val module = new LazyModuleImp(this)
+  class WbArbiterWrapperImp(wrapper: LazyModule) extends LazyModuleImp(wrapper)
     with HasXSParameter with HasWritebackSourceImp with HasExuWbHelper {
 
     val io = IO(new Bundle() {
@@ -336,6 +336,8 @@ class WbArbiterWrapper(
 
     io.out <> intArbiter.module.io.out ++ fpArbiter.module.io.out
   }
+
+  lazy val module = new WbArbiterWrapperImp(this)
 }
 
 class Wb2Ctrl(configs: Seq[ExuConfig])(implicit p: Parameters) extends LazyModule
@@ -351,7 +353,7 @@ class Wb2Ctrl(configs: Seq[ExuConfig])(implicit p: Parameters) extends LazyModul
     module.io.in := sink._1.zip(sink._2).zip(sourceMod).flatMap(x => x._1._1.writebackSource1(x._2)(x._1._2))
   }
 
-  lazy val module = new LazyModuleImp(this)
+  class Wb2CtrlImp(wrapper: LazyModule) extends LazyModuleImp(wrapper)
     with HasWritebackSourceImp
     with HasXSParameter
   {
@@ -385,6 +387,8 @@ class Wb2Ctrl(configs: Seq[ExuConfig])(implicit p: Parameters) extends LazyModul
 
     override def writebackSource: Option[Seq[Seq[ValidIO[ExuOutput]]]] = Some(Seq(io.out))
   }
+
+  lazy val module = new Wb2CtrlImp(this)
 
   override val writebackSourceParams: Seq[WritebackSourceParams] = {
     Seq(new WritebackSourceParams(configs.map(cfg => Seq(cfg))))
