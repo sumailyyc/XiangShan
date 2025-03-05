@@ -277,6 +277,20 @@ case class WithNKBL1D(n: Int, ways: Int = 8) extends Config((site, here, up) => 
     ))
 })
 
+case class WithNKBL1I(n: Int, ways: Int = 4) extends Config((site, here, up) => {
+  case XSTileKey =>
+    val sets = n * 1024 / ways / 64
+    up(XSTileKey).map(_.copy(
+      icacheParameters = ICacheParameters(
+        nSets = sets,
+        tagECC = Some("parity"),
+        dataECC = Some("parity"),
+        replacer = Some("setplru"),
+        cacheCtrlAddressOpt = Some(AddressSet(0x38022080, 0x7f)),
+      ),
+    ))
+})
+
 case class L2CacheConfig
 (
   size: String,
@@ -369,6 +383,7 @@ case class L3CacheConfig(size: String, ways: Int = 8, inclusive: Boolean = true,
         sets = sets,
         banks = banks,
         fullAddressBits = 48,
+        replacement = "random",
         clientCaches = tiles.map { core =>
           val l2params = core.L2CacheParamsOpt.get
           l2params.copy(sets = 2 * clientDirBytes / core.L2NBanks / l2params.ways / 64, ways = l2params.ways + 2)
@@ -475,7 +490,10 @@ class WithCHI extends Config((_, _, _) => {
 })
 
 class KunminghuV2Config(n: Int = 1) extends Config(
-  L2CacheConfig("1MB", inclusive = true, banks = 4, tp = false)
+  L3CacheConfig("2MB", inclusive = false, banks = 4, ways = 16)
+    ++ L2CacheConfig("256KB", inclusive = true, banks = 4, tp = false)
+    ++ WithNKBL1D(32, ways = 4)
+    ++ WithNKBL1I(32, ways = 4)
     ++ new DefaultConfig(n)
     ++ new WithCHI
 )
